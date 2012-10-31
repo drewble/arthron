@@ -1,0 +1,49 @@
+<?
+// purpose of function is to determine the pysical
+// attributes of package(s) to be shipped
+function ship_calc_pkg($items){
+global
+$boxes;
+
+$dim_unit = "inches";
+$weight_unit = "lbs";
+	unset($vol);
+	unset($total_weight);	
+
+	// calculate items weight and volume
+	for($x=0;$items[$x];$x++){
+		$item = $items[$x];
+		$width = $item["Width"];
+		$height = $item["Height"];
+		$depth = $item["Depth"];
+		$qty = $item["Quantity"];
+		$weight = $item["Weight"];
+		$items_vol = $items_vol + (($width * $height * $depth)*$qty);
+		$total_weight = $total_weight + ($weight * $qty);
+	}
+		print "Total volume is $items_vol<br>";
+		print "Total weight is $total_weight<br>";
+
+	// calculate boxes weight and volume
+	for($x=0;$boxes[$x];$x++){
+		$box=$boxes[$x];
+		$width=$box["Width"];
+		$height=$box["Height"];
+		$depth=$box["Depth"];		
+		$boxes[$x]["Volume"] = ($width * $height * $depth); //vol of this one box
+	}
+print "Box ".$boxes[1]["Name"]." has a volume of ".$boxes[1]["Volume"]." cubic $dim_unit.<br>";
+
+	for($x=0; $boxes[$x]; $x++){
+		$box=$boxes[$x];
+		$vol=$box["Volume"];
+		if ($vol >= $items_vol) $ok_box[] = $box;
+	}
+
+	for($x=0;$ok_box[$x];$x++){
+		print "Everything will fit in a \"".$ok_box[$x]["Name"]."\". Total package weight will be ".($total_weight + $ok_box[$x]["Weight"])." $weight_unit. <br>";
+	}
+
+	print $ok_box[0]["Volume"];
+}
+?>

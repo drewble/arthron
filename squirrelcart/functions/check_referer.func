@@ -1,0 +1,39 @@
+<?
+/*
+ purpose of this function is to check the referer address and stop execution if referer is not an authorized host, 
+ based on the list of authorized hosts in the admin options table
+
+ modified 9/18/02 for v1.0.9 to resolve problems that occured when using uppercase chars in config.php file for site_www_root and site_secure_root
+ modified 9/18/02 for v1.0.9 to improve output to customer when referering address is unauthorized
+ modified 11/14/02 for v1.2 to authorize when HTTP_REFERER is not present
+*/
+function check_referer(){
+global
+$HTTP_REFERER,$SC;
+
+// some browsers do not seem to pass a referer, so we need this line to assume they are authorized, or they can't order
+	if(!$HTTP_REFERER) return 1;
+
+$referer = strtolower($HTTP_REFERER);
+
+$authorized_hosts = get_field_val("Store_Information","Authorized_Hosts","record_number = '1'");	// get comma delimited string of authorized hosts
+if($authorized_hosts) {
+	$authorized_hosts = explode(",",$authorized_hosts);	// 	turn into an array
+	} else {
+		$authorized_hosts[] = strtolower($SC['site_www_root']);
+		$authorized_hosts[] = strtolower($SC['site_secure_root']);
+		$authorized_hosts[] = strtolower(str_replace("//","//www.",$SC['site_www_root']));
+		$authorized_hosts[] = strtolower(str_replace("//","//www.",$SC['site_secure_root']));
+		$authorized_hosts[] = strtolower(str_replace("//www.","//",$SC['site_www_root']));
+		$authorized_hosts[] = strtolower(str_replace("//www.","//",$SC['site_secure_root']));
+	}
+// if admin has not specified authorized hosts, don't check. this will keep the cart working if nothing is set as authorized hosts.
+	for($x=0;$authorized_hosts[$x];$x++){
+		$authorized_host = $authorized_hosts[$x];	// this is one authorized host
+		if(strstr($referer,$authorized_host)){    //	if referer is an authorized host
+			$authorized = 1;		// set authorized
+			}
+		}
+	return ($authorized) ;
+	}
+?>

@@ -1,0 +1,215 @@
+<?
+// file modified on 5/20/2003 - to exclude "New Products" from REL_Products__Catetories" relationship, so merchant can't add products to it
+// file modified on 5/23/2003 - to exclude records that are marked as hidden in Record_Definition table
+// file modified on 9/29/2003 for v1.3.0 - to resolve relationship problems
+//
+// functions primary purpose is to display a means to manage the relationship as specified by a record in the Relationships table
+// this is used in the edit_records function, for the purpose of editing records in a relationship table at the same time as your editing 
+// the record it refers to
+
+function show_relation($field_name,$table,$current_value){
+global
+$$field_name,$selected_record_number,$REL_new,$prev_REL_new,$relationship_field,$add_REL_records,$sql_action,$add_new_item,$HTTP_POST_VARS,$l;
+
+$REL_new = $HTTP_POST_VARS['REL_new'][$field_name];
+
+// capture relationship info into an array
+	$where = "(Table_1 = \"$table\" AND Manage_With_Table_1_Field = \"$field_name\") OR (Table_2 = \"$table\" AND Manage_With_Table_2_Field = \"$field_name\")";
+	$relationships = get_records("Relationship","*",$where,0,0);
+	for($a=0;$relationships[$a];$a++){
+		$relationship = $relationships[$a];
+
+		// set field to sort by. if tracking position, use "Position" field, else use "record_number"
+		if ($relationship['Track_Position']) {
+			// tracking position
+			$sort_field = "Position";
+		} else {
+			// not tracking position
+			$sort_field = "record_number";
+		}
+	// determine what to use for label and what field to display for choices
+		$relationship_table = $relationship['Relationship_Table'];
+		if ($table == $relationship['Table_1']) {
+			$label = $relationship['Manage_With_Table_1_Field'];
+			$source_table = $relationship['Table_2'];
+			$source_field = $relationship['Field_From_Table_2_Representing_Relationship'];
+			$non_source_field = $relationship['Field_From_Table_1_Representing_Relationship'];
+			if($selected_record_number) {
+				$related_to_rn = get_records($relationship_table,"Table_2","Table_1 = $selected_record_number",$sort_field,"ASC");		
+				// below is the record number representing this relationship. Example - in the table "REL_Code__Container" this would be the value of the "record_number" field for this particular record
+				$relationship_tb_rn = get_records($relationship_table,"record_number","Table_1 = $selected_record_number",$sort_field,"ASC");		
+				// below is the record number that will be stored in the "Table_1" column of the table that represents the relationship
+				$REL_table_1_rn = $selected_record_number;
+			}
+			$related_table = "Table_2";
+			$this_table = "Table_1";
+		}
+		if ($table == $relationship['Table_2'] && $table != $relationship['Table_1']) {
+			$label = $relationship['Manage_With_Table_2_Field'];
+			$source_table = $relationship['Table_1'];
+			$source_field = $relationship['Field_From_Table_1_Representing_Relationship'];
+			$non_source_field = $relationship['Field_From_Table_2_Representing_Relationship'];
+			if($selected_record_number) {
+				$related_to_rn = get_records($relationship_table,"Table_1","Table_2 = \"$selected_record_number\"",$sort_field,"ASC");		
+				// below is the record number representing this relationship. Example - in the table "REL_Code__Container" this would be the value of the "record_number" field for this particular record
+				$relationship_tb_rn = get_records($relationship_table,"record_number","Table_2 = $selected_record_number",$sort_field,"ASC");		
+				// below is the record number that will be stored in the "Table_2" column of the table that represents the relationship
+				$REL_table_2_rn = $selected_record_number;
+			}
+			$related_table = "Table_1";
+			$this_table = "Table_2";
+		}
+		$label = str_replace("_"," ",$label);
+		$records = get_records($source_table,"$source_field,record_number",0,$source_field,"ASC",0,0,1);
+
+		// to add new records, set $REL_new equal to the number of new records you want
+		if ($sql_action != "Submit Record"){  // dont need to add new fields when submitting record.
+			// below line ensures that if this is a new record, or the related record has been deleted, at least one new relationship select box
+			// will show up, so the user does not have to hit "add Category" or similar button
+			// $relationship_tb_rn detects whether their is already a relationship existing
+			if (!$prev_REL_new[$field_name] && !$relationship_tb_rn) $prev_REL_new[$field_name] = 1;
+			if($add_REL_records[$field_name] || $prev_REL_new[$field_name]) {
+				if ($add_REL_records[$field_name]) {
+					$REL_new = $prev_REL_new[$field_name] + $REL_new;
+				} else {
+					$REL_new = $prev_REL_new[$field_name];
+				}
+				print "<input type='hidden' name='prev_REL_new[$field_name]' value='$REL_new'>";
+				for($ni=0;$ni < $REL_new;$ni++){
+					$relationship_tb_rn[][0] = "new";
+				}
+			}
+		}
+
+		$source_table_nu = str_replace("_"," ",$source_table);
+		if (!$relationship['Title']) $relationship['Title'] = "Relationship Section";
+		if (!$relationship['Header']) $relationship['Header'] = "This section represents the relationship between this record and the \"$source_table_nu\" table.";
+
+		// the following line is a hack to add a closing div tag above the parent category field and below the category options
+		// can't do this with field definition yet, because relationships are handled via the relationships table instead of field def table
+		if ($table = "Categories" && $relationship['Manage_With_Table_1_Field'] == "Parent_Category") print "</div>";
+		print "
+		<div class=\"form_section\">
+		<div class=\"form_section_header\">".$relationship['Title']."</div>
+		<div align='center' style='margin-bottom:10'>".$relationship['Header']."</div>
+		";
+		if($relationship_tb_rn && $records){
+			print "
+			<table align='center'>
+			<tr>";
+			// special case for Orders table relationship
+			if ($table == "Orders") print "<td width=\"120\"><b>Date</b></td>";
+			print "<td>
+			<b>$label</b>
+			</td>";
+			if($this_table == "Table_1" && $relationship['Track_Position']) {
+				$onchange = "onchange=\"this.form.submit()\"";
+				print "
+				<td>
+					Position
+				</td>";
+			} else {
+				unset($onchange);
+			}
+			print "<td align='center'>\n";
+			show_image("Cart_Images","delete");
+			print "
+			</td>
+			</tr>";
+	for ($b=0;$relationship_tb_rn[$b];$b++){
+		// special case for REL_order__Status table - to get date the relationship was added
+		$record_date = get_field_val("REL_Order__Status","Record_Date","record_number = '".$relationship_tb_rn[$b]['record_number']."'");
+		if ($record_date) {
+			$record_date = strtotime($record_date);
+			$record_date = date("m/d/Y h:i A", $record_date);
+		}
+		print "<tr>\n";
+		// special case for Orders table, because it has an extra field
+		if ($table == "Orders") print "<td>$record_date</td>";
+		print "<td>\n";
+		print "<input type=\"hidden\" name=\"relationship_field[]\" value=\"$field_name\">\r\n";
+		print "<input type=\"hidden\" name=\"relationship_table[]\" value=\"$relationship_table\">\r\n";
+		print "<input type=\"hidden\" name=\"relationship_tb_rn[]\" value=\"".$relationship_tb_rn[$b][0]."\">\r\n";
+		print "<input type=\"hidden\" name=\"REL_table_1_rn[]\" value=\"$REL_table_1_rn\">\r\n";
+		print "<input type=\"hidden\" name=\"REL_table_2_rn[]\" value=\"$REL_table_2_rn\">\r\n";
+		print "<select $onchange name=\"$field_name"."[]\">";
+		print "<option value=\"\"></option>\r\n";
+		for($x=0;$records[$x];$x++){
+			$record = $records[$x];
+			$rn = $record[record_number];
+			$display_value = $record[$source_field];
+			$current_val = $$field_name;
+			$current_val = $current_val[$b];
+			if (!isset($current_val)) $current_val = $related_to_rn[$b][0];
+			if ($rn == $current_val) {
+				$selected = "SELECTED";
+			} else {
+				unset($selected);
+			}
+			// below if statement makes the "New Products" category inaccessible for adding products to
+			if (!($relationship['Manage_With_Table_1_Field'] == "Category" && $rn == 1)) { ;
+				print "<option $selected value=\"$rn\">$display_value</option>\r\n";
+			}
+		}
+		print "</select>\r\n";
+		print "</td>\r\n";
+
+
+		// **** Position section ***************//
+		// section controls positioning. for now, we are assuming that position defines where item from table_1 will appear in table_2, and not vice versa!
+		if($this_table == "Table_1" && $relationship[Track_Position]){
+			// below is the number representing the current position of this relationship
+			$current_position = get_field_val($relationship_table,"Position","record_number = '".$relationship_tb_rn[$b][0]."'");
+			$skip_position = $current_position + 1;		// this is the position to skip
+			if(isset($current_position)) $exclude = " AND Position != '$current_position'"; //only exclude current position if its set
+			// get all records for this relationship, except for one in current position
+			$relationship_records = get_records($relationship_table,"*","$related_table = '$current_val' $exclude","Position","ASC");
+			//don't show position if container wasn't chosen
+			if($current_val){
+				print "<td>\r\n";
+				print "<select name=\"REL_position[]\">";
+				// "Top of..." will always be available, so do it here first
+				if ($current_position == 0) $selected = "selected";
+				print "<option $selected value=\"0\">Top of $label</option>\r\n";
+				// loop through relationship records to display choice for position
+				for($x=0;$relationship_records[$x];$x++){
+					unset ($selected);
+					if ($current_position == ($x+1)) $selected = "selected";
+					$rel_record = $relationship_records[$x];	// current record in loop
+					if (!$relationship_records[$x+1]) { // if last choice
+						$choice = "Bottom of $label";
+					} else {
+						$prev_rn = $relationship_records[$x][$this_table];  //rn of the record that appears above this one
+						$choice_name = get_field_val($table,$non_source_field,"record_number = '$prev_rn'");
+						$choice = "After \"$choice_name\"";
+					}
+					print "<option $selected value=\"".($x+1)."\">$choice</option>\r\n";
+				}
+				print "</select>\r\n";
+				print "</td>\r\n";
+			}
+		}
+		// end of Position section
+		
+		// $l is used to increment numbers for deleting records, regardles off # of relationships present
+		if (!isset($l)) $l = 0;
+		print "<td><input type='checkbox' name='REL_delete[".$l++."]' value='".$relationship_tb_rn[$b][0]."'></td>";
+	}
+	if($relationship_tb_rn) print "</tr></table>\r\n";
+	}
+
+	if ($records) {
+		print "<div align='center'>";
+		print "<input type='submit' name='add_REL_records[$field_name]' value='add $label(s)'>\n";
+		print "	<input type='text' size='2' value='1' name='REL_new[$field_name]'>\n";
+		print "</div>\n";
+	} else {
+		print "<div align='center'>";
+		print "You do not have any ".$label."s in your database. <br>In order to associate this record with a $label, you must create one.<br><br>";
+		print "</div>";
+	}
+	print "</div>";
+}
+//unset($REL_new);
+}
+?>

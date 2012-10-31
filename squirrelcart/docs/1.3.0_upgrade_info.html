@@ -1,0 +1,26 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+	<title>Squirrelcart Documentation</title>
+	<link rel='stylesheet' type='text/css' href='default.css'>
+</head>
+
+<body>
+<div class="sectionheader">v1.2.0 to v1.3.0 Upgrade Information</div>
+
+The file used to display Squirrelcart's main cart page (store.php by default) has changed. You will need to add the following code at the very bottom:
+<div class="indent">
+	<div class="php">
+	&lt;? <br>
+		<div style="margin-left: 10px">
+			// session variable storage....do not remove or move this section! it must be after your closing HTML tag<br>
+			$HTTP_SESSION_VARS['sc'] = $SC; <br>
+		</div>
+	?&gt;
+	</div>
+</div>
+
+Failure to update your main cart page with these changes will likely cause errors to be displayed when browsing the site. If you did not significantly modify your cart page from the default settings when you did your initial install, you will be better off replacing it with the new store.php file. If you do this, be sure to update the first line that includes your config file.
+</body>
+</html>

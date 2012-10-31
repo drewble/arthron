@@ -1,0 +1,17 @@
+<?
+function content_container($name){
+ // record number of container
+ 	$container_rn = get_field_val("Content_Container","record_number","Name = '$name'");
+
+// array containing the record numbers of all pieces of code in this container
+	$content_rns = get_records("REL_Content__Container","Table_1","Table_2 = '$container_rn'","Position","ASC");
+
+	for($x=0;$content_rns[$x];$x++){	// loop through each code rn
+		$content_rn = $content_rns[$x][0];
+		$content_name = get_field_val("Content","Name","record_number = '$content_rn'");
+		$content = $content.content($content_name);
+
+	}
+	return $content;
+}
+?>

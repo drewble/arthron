@@ -1,0 +1,35 @@
+<?
+// $rn is record number of either a product or a category
+// $source is either "product" or "category"
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+//
+function get_crumb_nav($rn, $source) {
+global $Crumb_Nav,$SC;
+
+$sep = $SC[bread_crumb_seperator];
+	if ($source == "category") {
+		$parent = get_parent($rn);
+		$cat_name = get_field_val("Categories","Name","record_number = $rn");
+		$cat_display_name = get_field_val("Categories","Display_Name","record_number = $rn");
+		if ($cat_display_name) $cat_name=$cat_display_name;
+		$cat_link = "<a class='bread_crumb_link' href='$SC[www_cart_page]?crn=$rn&action=show&show_products_mode=cat_click$SC[SID]'>$cat_name</a>";
+		if ($Crumb_Nav) {
+			$Crumb_Nav = "$cat_link $sep $Crumb_Nav";
+			} else {
+				$Crumb_Nav = "$cat_link";
+			}
+		if ($parent) {
+			get_crumb_nav($parent,"category");
+		}
+	}
+	if($source == "product") {
+		$product_name = get_field_val("Products","Name","record_number = $rn");
+		$cat_rn = get_field_val("Products","Category","record_number = $rn");
+		$cat_name = get_field_val("Categories","Name","record_number = $cat_rn");
+		$Crumb_Nav = get_crumb_nav($cat_rn,"category");
+		$Crumb_Nav = "$Crumb_Nav $sep <span class='bread_crumb_link'>$product_name</span>";
+	}
+
+	return "$Crumb_Nav";
+}
+?>

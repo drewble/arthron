@@ -1,0 +1,24 @@
+<?
+// this function created on 5/22/2003 for v1.1.1
+// purpose of function is to return $result_qty best selling product record_numbers in an array
+// if out of stock items are set to not be displayed in store settings
+function get_best_sellers($result_qty=10){
+global $SC;
+	// below line will exclude out of stock items, if specified to do so in store settings
+	if($SC['inventory_control'] && $SC['out_of_stock_behavior'] == "1") $exclude_not_in_stock = "	AND p.Number_in_Stock > 0";
+	$query = "
+	SELECT ps.Product_rn
+	FROM Products_Sold ps, Products p
+	WHERE ps.Product_rn = p.record_number 
+	AND p.Not_For_Sale != 1
+	$exclude_not_in_stock
+	ORDER BY ps.Quantity DESC
+	LIMIT 0,$result_qty;";
+	$result = mysql_query ($query);
+	while ($row = mysql_fetch_array ($result)) {
+		$row['Category'] = $crn;
+		$best_sellers[] = $row;
+	}
+	return $best_sellers;
+}
+?>

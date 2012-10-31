@@ -1,0 +1,9 @@
+<?
+// file added on 5/22/2003
+function show_admin_options(){
+// purpose of function is to show admin options on cart page, when logged in as admin
+	global $SC;
+	$Admin_Options_Path = $SC['www_admin_page'];
+	include $SC['templates']['admin_options'];
+}
+?>

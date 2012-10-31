@@ -1,0 +1,23 @@
+<?php
+// file modified on 11/16/2003 for v1.3.0 - to remove unused parameter from xml_post_sc function
+
+function xml_post_sc($url,$content,$timeout=30){
+	// count content length for Content-Length header
+	$content_length = strlen($content);
+	// initialize curl session
+	$ch = curl_init($url);
+
+	curl_setopt($ch, CURLOPT_HEADER, 1);
+	curl_setopt($ch,CURLOPT_POST,1);
+	curl_setopt ($ch, CURLOPT_HTTPHEADER, Array("Content-Type: application/xml"));
+	curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+	curl_setopt($ch,CURLOPT_POSTFIELDS,$content);
+	
+	// set custom request option for posting to url
+	//curl_setopt($ch,CURLOPT_CUSTOMREQUEST, $req);
+//	curl_setopt($ch,CURLOPT_TIMEOUT,$timeout);
+	$result=curl_exec($ch);
+	curl_close ($ch);
+	return $result;
+}
+?>

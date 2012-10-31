@@ -1,0 +1,9 @@
+<?
+// purpose is to retrieve record number for unique record
+// via table name, name of field and its value
+function get_record_number($table, $field, $value){
+		$records=get_records($table,0,"$field = \"$value\"",0,"ASC");
+		$rn=$records[0]["record_number"];
+		return $rn;
+}
+?>

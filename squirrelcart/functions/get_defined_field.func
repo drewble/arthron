@@ -1,0 +1,419 @@
+<?
+/*
+	file modified on 7/24/03 for v1.2.0 to support running PHP with either magic_quotes_gpc On or OFF
+	file modified on 7/27/03 for v1.2.0 to fix javascript hide errors
+	file modified on 10/22/03 for v1.3.0 to fix missing Austria and Turkey countries from Address Form Settings table (line 118)
+	file modified on 12/11/03 for v1.4.0 to fix UPS reg link on Shipping_Couriers record number 2
+
+	purpose of function is to return a string which contains an HTML form field based on a field definition record
+	$table is the table the field is defined on
+	$field is the field that  is defined
+	$rn is optional. it should be the record number of the record you are on in table specified by $table. if specified, the value of this
+	field will default to the value of it in the record number specified by $rn
+	$descriptor is what is displayed immediately before the field
+	$br will overide the Break_After setting in the field definition.
+	$value is optional. if set, it will become the value for this form field
+	$alt_field_name is optional, and will override the default field name for special cases
+	$alt_field_value is optional, but may need to be used if using an alt_field_name
+*/
+function get_defined_field($table,$field_name,$rn=0,$descriptor=0,$break=0,$GLOBALS=0,$alt_field_name=0,$alt_field_value=0){
+	global
+	$SC,$HTTP_POST_VARS,$db,$selected_record_number,$add_new_item;
+	
+	if(!$rn && $selected_record_number) $rn = $selected_record_number;
+	if(!$descriptor) unset($descriptor);
+	$field_def = get_records("Field_Definition","*","Table_Name = '$table' AND Field_Name = '$field_name'");
+	$field_def = $field_def[0];
+	// if overriding the field name, then do it below
+	if($alt_field_name) $field_def[Input_Name] = $alt_field_name;
+	// this will get the current value of the field from the record designated by $rn
+	if (isset($rn) && !$HTTP_POST_VARS) {
+//		$field_value = get_field_val($table,$field_name,"record_number = '$rn'");
+		$field_value = htmlspecialchars(get_field_val($table,$field_name,"record_number = '$rn'"));
+		$$field_name = $field_value;
+	} else {
+		if ($alt_field_name) {
+//			$field_value = $alt_field_value;
+			$field_value = htmlspecialchars($alt_field_value);
+			$$field_name = $field_value;
+		} else {
+//			$field_value = stripslashes($HTTP_POST_VARS[$field_name]);
+			$field_value = htmlspecialchars(stripslashes($HTTP_POST_VARS[$field_name]));
+		}
+	}
+	if($field_def['Read_Only'] && !security_level("Squirrelcart Developer")) {
+		$read_only = "readonly";	
+		$read_only_style = "background-color:silver; ";
+	}
+	if($field_def['Show_When']) {
+		// need to find out the values of fields on the form
+		$fields = get_fields($db,$table);
+		for($x=0;$fields[$x];$x++){
+			$field = $fields[$x];
+			if(strstr($field_def[Show_When],$field)) {  // if show when contains the field we are on, then get its value
+				// print "checking for $field in $field_def[Show_When] to determine whether or not to display $field_def[Field_Name]<br>";
+				if(isset($GLOBALS[$field]))	{
+					$$field = $GLOBALS[$field];
+				} else {
+					if($field == "record_number") { 
+						$$field = $rn;
+					} else {
+						$field_value2 = get_field_val($table,$field,"record_number = '$rn'");
+						$$field = $field_value2;
+					}
+				}				
+			}
+		}
+		$show_when = $field_def['Show_When'];
+		eval("\$show = $show_when;");
+	} else {
+		$show = 1;
+	}
+	if($show) {
+		 $visibility = "";
+	} else {
+		 $visibility = "display: none;";
+	}
+	if (!$alt_field_name && $field_def['Display_As'] != "Image Upload") { // if statement is a hack to keep state field looking OK in address form
+		$descriptor = "<span id='$field_name' style='$visibility' class=\"field_name\">$descriptor: </span>";
+	}
+	
+	if ($field_def['Field_Name'] == "UPS_Agreed" && !$show) return;
+	if ($field_def['Field_Name'] == "UPS_Reg_Notice" && !$show) return;
+
+	// only show field if show when evaluates OK and field does not rely on data from another field not yet submitted
+	if($show || ($field_def['Input_Choices_Source'] != "Field Names")){
+
+//	if($show && ($field_def['Input_Choices_Source'] != "Field Names")){
+//		$return_value = $return_value.$field_def[Precede_With];
+
+		if ($field_def['Precede_With']) {
+			// the PW span tag below is used to toggle vis on the precede with section of a field....if there is an opening but no closing tag like DIV or SPAN, then
+			// we can't output the below span tag, as it will be improperly nested.....so...check for an opening and closing DIV or SPAN first...if tags aren't closed, then this 
+			// PW tag won't show up
+			$open_divs = substr_count(trim(strtolower($field_def['Precede_With'])),"<div>");
+			$close_divs = substr_count(trim(strtolower($field_def['Precede_With'])),"</div>");
+			$open_spans = substr_count(trim(strtolower($field_def['Precede_With'])),"<span>");
+			$close_spans = substr_count(trim(strtolower($field_def['Precede_With'])),"</span>");
+			$open_tds = substr_count(trim(strtolower($field_def['Precede_With'])),"<td>");
+			$close_tds = substr_count(trim(strtolower($field_def['Precede_With'])),"</td>");
+			if ($open_divs == $close_divs && $open_spans == $close_spans && $open_tds == $close_tds) {
+				$return_value = $return_value."<span id='PW$field_name' style='$visibility'>".$field_def['Precede_With']."</span>";
+			} else {
+				$return_value = $return_value.$field_def['Precede_With'];
+			}
+		}
+
+		// custom for UPS links....need a better way to do this :)
+		if ($field_name == "UPS_Agreed" && $selected_record_number == 2) {
+			if ($field_value == 1) {
+				print "<br><div style=\"font-weight: bold\" align=\"center\">You are registered to use UPS OnLine® Tools</div><br>";
+			} else {
+				print "<br><div align=\"center\">
+					<a href=\"index.php?ups_register=1\"><b>Enable UPS OnLine® Tools</b></a>
+				</div><br>";
+			}
+		}
+
+
+
+
+
+		// get choices and values section
+		// for comma seperated values
+		if ($field_def[Input_Choices_Source] == "Comma Seperated Values") {
+			$choices = explode(",",$field_def[Input_Choices]);
+			$values = $choices;
+		}
+		// for table names
+		if ($field_def[Input_Choices_Source] == "Table Names") {
+			$choices = get_tables($db);
+			$values = $choices;
+		}
+		// for field names
+		if ($field_def['Input_Choices_Source'] == "Field Names") {
+			unset ($choices); unset ($values);
+			// if the choice, which should be a table name, has a dollar sign at the beginning
+			if (strstr($field_def[Input_Choices],"$")) {
+				$field_def[Input_Choices] = str_replace("$","",$field_def[Input_Choices]);
+				if ($$field_def[Input_Choices]) { // if this record was just submitted, this should equal 1
+					$field_def[Input_Choices] = $$field_def[Input_Choices];
+				} else {
+					if (!$add_new_item) {
+						$field_def[Input_Choices] = get_field_val($table,$field_def[Input_Choices],"record_number = $selected_record_number");
+					} else {
+						unset ($field_def[Input_Choices]);
+					}
+				}
+			}
+			if ($field_def[Input_Choices]) { 
+				$choices = get_fields($db,$field_def[Input_Choices]);
+				$values = $choices;
+			}	
+		}
+		// for field names
+		if ($field_def['Input_Choices_Source'] == "Image Field Names") {
+			unset ($choices); unset ($values);
+			// if the choice, which should be a table name, has a dollar sign at the beginning
+			if (strstr($field_def[Input_Choices],"$")) {
+				$field_def[Input_Choices] = str_replace("$","",$field_def[Input_Choices]);
+				if ($$field_def[Input_Choices]) { // if this record was just submitted, this should equal 1
+					$field_def[Input_Choices] = $$field_def[Input_Choices];
+				} else {
+					if (!$add_new_item) {
+						$field_def[Input_Choices] = get_field_val($table,$field_def[Input_Choices],"record_number = $selected_record_number");
+					} else {
+						unset ($field_def[Input_Choices]);
+					}
+				}
+			}
+			if ($field_def['Input_Choices']) { 
+				$tempchoices = get_fields($db,$field_def['Input_Choices']);
+				$values = $choices;
+			   for($i=0;$tempchoices[$i];$i++){
+			       $tempchoice = $tempchoices[$i];
+			       // check to see if field is an image upload
+			       $display_as = get_field_val("Field_Definition","Display_As","Table_Name  = '$Table_Name' AND Field_Name = '$tempchoice'");
+			       if($display_as == "Image Upload") {
+			           $values[] = $tempchoice;
+			           $choices[] = str_replace("_"," ",$tempchoice);
+			       } else {
+			           unset($display_as);
+			       }
+			   }
+			}	
+		}
+
+		// for Field Values
+		if ($field_def[Input_Choices_Source] == "Field Values") {
+			$pre_choices = get_records($field_def[Choices_Source_Table],"record_number, $field_def[Choices_Source_Field]",0,$field_def[Choices_Source_Field],"ASC");
+			for($ci=0;$pre_choices[$ci];$ci++){
+				// exclude records that are hidden from select inputs and other fields...
+				$hidden = get_field_val("Record_Definition","Hide_Record","Record = ".$pre_choices[$ci]['record_number']." AND Table_Name = '".$field_def['Choices_Source_Table']."'");
+				if (!$hidden) {
+					$choices[] = $pre_choices[$ci][$field_def['Choices_Source_Field']];
+					$values[] = $pre_choices[$ci]['record_number'];
+				}
+				unset ($hidden);
+			}
+		}
+		// for Formula
+		if ($field_def['Input_Choices_Source'] == "Formula") {
+			// this formula needs to set an array for the $choices variable, and an array for th $values variable
+			eval($field_def['Input_Choices_Formula']);
+		}
+		// end of getting choices and values section
+		if (!$field_def[Input_Name]) $field_def[Input_Name] = $field_name;
+		// if overriding Break_After in the function call, then set break according to what was past, else set it according to the field definition
+		if ($break == "no") unset($br);
+		if($break == "yes") $br = "<div id='BR$field_name' style='$visibility'></div>";
+		if(!$break) {
+			if ($field_def[Break_After]) {
+				$br = "<div id='BR$field_name' style='$visibility'></div>";
+			} else {
+				unset($br);
+			}
+		}
+		// if displaying checkbox inputs
+		if ($field_def['Display_As'] == "Checkbox Input"){
+			if ($field_def['Submit_on_Change']) {
+				if ($field_def['Input_Choices_Source'] == "Table Names" || $field_def['Input_Choices_Source'] == "Field Names" || $field_def['Input_Choices_Source'] == "Image Field Names") {
+					$submit_on_change =  "onclick=\"this.form.submit()\"";
+				} else {
+					$submit_on_change =  "onclick=\"javascript:toggle_vis()\"";
+				}
+			}
+			if ($choices[0]) { // if choices is an array, display as multiple checkboxes
+				if ($HTTP_POST_VARS[$field_name]) $field_value = $HTTP_POST_VARS[$field_name];
+				$fieldchoice_curr_val = $field_value;
+				// when loading this record for the first time, the value is pulled from the DB as a string seperated like this "value1^^value2^^value3";
+				// but when it is submitted for changes, it gets submitted as an array, not a string. so, we only need to convert the field to an array
+				// when it is first opened, hence the next line
+				if(!is_array($fieldchoice_curr_val)) $fieldchoice_curr_val = array_to_sql("explode",$fieldchoice_curr_val);
+				if ($add_new_item) {
+					if($field_def['Default_Checkbox_Value']) $checked = "checked";
+				} else {
+					// loop through fields that are currently selected, and set them into an array, so when form displays, 
+					// it will show the current values as being selected
+					unset($checked);
+					for($sfi = 0;$fieldchoice_curr_val[$sfi];$sfi++){
+						$already_checked[$fieldchoice_curr_val[$sfi]] = "checked";
+					}
+				}
+				$small_checked_box = get_image("Cart_Images","small_checked_box");
+				$small_unchecked_box = get_image("Cart_Images","small_unchecked_box");
+				$check_uncheck_links = 	"
+				<a class=\"menuButton2\" style=\"width: 11; cursor: default\" href=\"javascript:checkAll(document.record_form, '$field_name', 1)\">$small_checked_box</a>&nbsp;
+				<a class=\"menuButton2\" style=\"width: 11; cursor: default\"href=\"javascript:checkAll(document.record_form, '$field_name', 0)\">$small_unchecked_box</a>";
+				$return_value = $return_value."<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n";
+				$return_value = $return_value."<tr><td width=\"150\" valign=\"top\">\n";
+				$return_value = $return_value."$descriptor ";
+				$return_value = $return_value."</td>";
+				// loop through all fields in source table, and display each as a checkbox
+				$choices_per_line = $field_def['Choices_per_line'];
+				if (!$choices_per_line) $choices_per_line = 1;
+				$choice_num = 1;
+				// determine whether to show java script check/uncheck boxes for ease of editing
+				if (count($choices) > 5 ) $show_checks=1;
+				for($ix=0;$choices[$ix];$ix++){
+					$choice = $choices[$ix];
+					$value = $values[$ix];
+					if ($choice_num == $choices_per_line) {
+						if($show_checks) {
+							$checks = $check_uncheck_links;
+							unset($show_checks);
+						} else {
+							unset ($checks);
+						}
+						$choicebr = "</tr><tr>\n<td class=\"field_name\">$checks&nbsp;&nbsp</td>\n";
+						$choice_num = 1;
+					} else {
+						unset ($choicebr);
+						$choice_num++;
+					}
+					if (!$add_new_item) $checked = $already_checked[$choice];
+					$return_value = $return_value."<td valign=\"top\"><input id=\"$field_name\" $read_only style='$visibility $read_only_style' $submit_on_change type=\"checkbox\" name=\"$field_name"."[]\" value=\"$choice\" $checked></td><td valign=\"top\" style=\"$visibility padding-top:2\">$choice</td>$choicebr\n";
+				}
+				// finish up table properly
+				if ($choice_num < $choices_per_line) {
+					for(0;$choice_num != $choices_per_line;$choice_num++){
+						//					print "choice num: $choice_num<br>";
+						//					print "choices per line: $choices_per_line<br>";
+						//					die;
+						$return_value = $return_value."<td></td><td></td>";
+					}
+				}
+				$return_value = $return_value."</tr></table>";
+			} else {
+				if ($add_new_item && !$HTTP_POST_VARS[$field_name]) {
+					if($field_def[Default_Checkbox_Value]) $checked = "checked";
+				} else {
+					// loop through fields that are currently selected, and set them into an array, so when form displays, 
+					// it will show the current values as being selected
+					unset($checked);
+					if ($field_value == 1) $checked = "checked";
+				}
+				$return_value = $return_value."$descriptor ";
+				$return_value = $return_value."<input style='$visibility' id='$field_name' name='$field_name' type='checkbox' $checked value='1' $submit_on_change>";
+				$return_value = $return_value;
+			}
+		}			
+		if ($field_def[Display_As] == "Radio Input"){
+			$return_value = $return_value.$descriptor;
+			// special case to center sc logos in store settings table
+			if ($field_name == "Squirrelcart_Logo") $return_value = $return_value."<div style=\"text-align:center; widht: 100%\">";
+			$choices_per_line = $field_def[Choices_per_line];
+			$choice_num = 1;
+			if(!$values) $values = $choices;
+			for($ci=0;$choices[$ci];$ci++){
+				$choice = $choices[$ci];
+				$value = $values[$ci];
+				if ($choice_num == $choices_per_line) {
+					$choicebr = "<br>";
+					$choice_num = 1;
+				} else {
+					unset ($choicebr);
+					$choice_num++;
+				}
+				if (!$field_value) $field_value = $field_def[Default_Value];
+				if ($field_value == $value) {
+					$checked = "checked";
+				} else {
+					unset ($checked);
+				}
+				$return_value = $return_value."<input id='$field_name' $read_only style='$visibility $read_only_style vertical-align:middle' type='radio' name='$field_name' value='$value' $checked><span id='$field_name' style='$visibility'>$choice</span>$choicebr";
+			}
+			if ($field_name == "Squirrelcart_Logo") $return_value = $return_value."</div>";
+		}
+		if ($field_def['Display_As'] == "Select Input"){
+			if ($field_def['Submit_on_Change']) {
+				if ($field_def['Input_Choices_Source'] == "Table Names" || $field_def['Input_Choices_Source'] == "Field Names" || $field_def['Field_Name'] == "Apply_to_Shipping_Type" || ($field_def['Field_Name'] == "Table_Name" && $field_def['Table_Name'] == "Image_Settings")) {
+					$submit_on_change =  "onchange=\"this.form.submit()\"";
+				} else {
+					$submit_on_change =  "onchange=\"javascript:toggle_vis()\"";
+				}
+			}
+			if($choices) { // // if the choices exist, show the field as a select, else don't show it at all
+				$return_value = $return_value."$descriptor";
+				if($field_def['Read_Only'] && !security_level("Squirrelcart Developer"))  {
+					$return_value = $return_value."<input type=\"text\" name=\"$field_def[Input_Name]\" value=\"$field_value\" readonly style=\"background-color: silver\">";
+				} else {
+					$return_value = $return_value."<select style='$visibility' id='$field_name' name='$field_def[Input_Name]' $submit_on_change>";
+					if (!$field_value) $selected = "selected";
+					if (isset($$field_name) && !$$field_name) $selected = "selected";
+					if (!$field_value) {
+						if ($field_def['Default_Value']) $field_value = $field_def['Default_Value'];
+					}
+					// blank choice at top of select box
+					if(!$field_def['Default_Value']) $return_value = $return_value."<option value='null' $selected></option>";
+					unset ($selected);
+					for ($ix=0;$choices[$ix];$ix++){
+						if ($field_value == $values[$ix]) $selected = "selected";
+						$return_value = $return_value."<option $selected value='$values[$ix]'>$choices[$ix]</option>";
+						unset ($selected);
+					}
+					$return_value = $return_value."</select>";
+				}
+			}				
+		}
+		if ($field_def['Display_As'] == "Textarea Input"){
+			$return_value = $return_value."$descriptor ";
+			$return_value = $return_value."<textarea class='field_input' $read_only style='$visibility width: $field_def[Width]; height: $field_def[Height]'  name='$field_def[Input_Name]'>$field_value</textarea>";
+		}
+		if ($field_def[Display_As] == "Image Upload") {
+			$mode="form";
+			include "$SC[cart_isp_root]/upload.php";
+		}
+		if($field_def['Display_As'] == "Text Input") {
+			if($add_new_item && !$field_value){
+				if(strstr($field_def[Default_Value],"<?")) {
+					// if in this section, the default value has PHP code in it
+					$field_def[Default_Value] = str_replace("<?","",$field_def[Default_Value]);
+					$field_def[Default_Value] = str_replace("?>","",$field_def[Default_Value]);
+					eval("\$field_value = $field_def[Default_Value];");
+				} else {
+					$field_value = $field_def[Default_Value];
+				}
+			}
+			$return_value = $return_value."$current$descriptor ";
+			$return_value = $return_value."<input id='$field_name' $read_only type=\"text\" name=\"$field_name\" value=\"$field_value\" style='$visibility $read_only_style width: $field_def[Width]'>\n";
+		}
+		if($field_def[Display_As] == "Hidden Field") {
+			$return_value = $return_value."<input id='$field_name' $read_only type=\"hidden\" name=\"$field_name\" value=\"$field_value\" style='$visibility $read_only_style width: $field_def[Width]'>\n";
+		}
+		if($field_def[Display_As] == "No Field") {
+			$return_value = $return_value."\n";
+		}
+		
+	}		
+	if ($field_def['Follow_With']) {
+		// the FW span tag below is used to toggle vis on the follow with section of a field....if there is an opening but no closing tag like DIV or SPAN, then
+		// we can't output the below span tag, as it will be improperly nested.....so...check for an opening and closing DIV or SPAN first...if tags aren't closed, then this 
+		// FW tag won't show up
+		$open_divs = substr_count(trim(strtolower($field_def['Follow_With'])),"<div>");
+		$close_divs = substr_count(trim(strtolower($field_def['Follow_With'])),"</div>");
+		$open_spans = substr_count(trim(strtolower($field_def['Follow_With'])),"<span>");
+		$close_spans = substr_count(trim(strtolower($field_def['Follow_With'])),"</span>");
+		$open_tds = substr_count(trim(strtolower($field_def['Follow_With'])),"<td>");
+		$close_tds = substr_count(trim(strtolower($field_def['Follow_With'])),"</td>");
+		if ($open_divs == $close_divs && $open_spans == $close_spans && $open_tds == $close_tds) {
+			$return_value = $return_value."<span id='FW$field_name' style='$visibility'>".$field_def['Follow_With']."</span>";
+		} else {
+			$return_value = $return_value.$field_def['Follow_With'];
+		}
+	}
+
+	//	$return_value = "<span style='vertical-align:top'>$return_value</span>";
+	$return_value = $return_value.$br;
+
+
+	unset($choices);
+	unset($values);
+	unset($selected);
+	unset($checked);
+	unset($br);
+	unset($submit_on_change);
+	unset($break);
+	return ($return_value);
+}
+?>

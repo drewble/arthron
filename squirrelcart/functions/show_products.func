@@ -1,0 +1,536 @@
+<?
+// file modified on 9/30/2002 for v1.0.9 - fix multiple word search navigation problem
+// file modified on 5/19/2003 for v1.1.0 - for support of New Product Preview function
+// file modified on 7/15/2003 for v1.2 to fix session loss when not using cookies
+// file modified on 7/24/2003 for v1.2 to support running PHP with either magic_quotes_gpc On or OFF
+// file modified on 9/28/2003 for v1.2 to fix option behavior problem
+// file modified on 10/4/2003 for v1.2 to fix large image display link
+// file modified on 10/23/2003 for v1.3.0 to fix blank product options causing MySQL errors
+// file modified on 12/6/2003 for v1.4.0 to fix add to cart problem - stay pn product page no longer worked
+//
+// return count of products in a specified category
+function count_products($cat_rn){
+	return count(get_products_from_category($cat_rn));
+}
+
+// returns a single product based on its record number
+function get_product($prod_rn) {
+	$product = get_records("Products","*","record_number = '$prod_rn'");
+	return $product[0];
+}
+
+// returns an array of product record numbers in a given category, specified by category record number ($cat_rn)
+// $limit, if set, needs to be set to a mysql limit string, as in "LIMIT 5,10"
+function get_products_from_category($cat_rn,$exclude_rn=0,$limit=0){
+global $SC;
+// if out of stock items are set to not be displayed in store settings
+	if($SC['inventory_control'] && $SC['out_of_stock_behavior'] == "1") {
+		$exclude_out_of_stock = "AND prod.Number_in_Stock > 0";
+	}
+	if ($exclude_rn) $exclude = "AND prod.record_number != '$exclude_rn'";
+	if (!$limit) unset($limit);
+	$orderby = @get_field_val("Store_Information","Order_Products_By");
+	if(!$orderby || $orderby == "null") $orderby = "Name";
+	$orderhow = @get_field_val("Store_Information","Order_Products_How");
+	if($orderhow) {
+		if ($orderhow == "Ascending") $orderhow = "ASC";
+		if ($orderhow == "Descending") $orderhow = "DESC";
+		} else {
+			$orderhow = "ASC";
+	}
+	$query = "
+	SELECT prod.record_number
+	FROM Categories cat, Products prod, REL_Products__Categories pc
+	WHERE cat.record_number = pc.Table_2 AND prod.record_number = pc.Table_1
+	AND cat.record_number = $cat_rn
+	AND prod.Not_For_Sale != 1
+	$exclude $exclude_out_of_stock
+	ORDER BY prod.$orderby $orderhow
+	$limit;";
+	$result = mysql_query ($query);
+	while ($row = mysql_fetch_array ($result)) {
+		$row['Category'] = $crn;
+		$products[] = $row;
+	}
+	return $products;
+}
+
+
+
+function show_product_detail($prod_rn){
+	global
+	$SC;
+	$template = $SC[templates][show_product_detail];
+	show_product($prod_rn,$template);
+}
+
+
+
+// purpose is to show a single product
+// $product is an array containing the product
+function show_product($prod_rn,$template=0){
+	global
+	$action,$SC,$linkto,$where,$db,$Crumb_Nav,$TD_Width,$Ranking,$HTTP_GET_VARS;
+	$product = get_product($prod_rn);
+if (!$product[Not_For_Sale]) {
+	$field_names=get_fields($db,"Products");
+	for($r=0;$field_names[$r];$r++){ // this for loops through all the products in the category specified
+		unset($option);
+		unset($option_names);
+		unset($key1);
+		unset($option_instruction);
+		unset($option_break);
+		//		$product=$products[$x];
+		$field_name=$field_names[$r]; // $field_name gets set to the name of the field
+		$is_array = $arrays[$field_name];
+		if($field_name=="Options") {
+			// get value of options for this product's category into an array
+			$cat_options = get_field_val("Categories","Options","record_number = \"$product[Category]\"");
+			if ($cat_options) $cat_options = array_to_sql("explode",$cat_options); //get all options into an array
+			// get value of options for this product into an array
+			$prod_options = $product[Options];
+			$prod_options = array_to_sql("explode",$prod_options); //get all options into an array
+			// get option behavior. this will determine how to treat options
+			$option_behavior = $product[Option_Behavior];
+			// get array with all options depending on option behavior that is set. 
+			// 1 equals "Override Category Option"
+			// 2 equals "Merge with Category Options
+			if ($option_behavior == 1 || !$cat_options) {
+				$options = $prod_options;
+				} else {
+					if ($option_behavior == 2 || !$option_behavior) {
+						$options = array_merge($cat_options,$prod_options);		// merge the options together
+					}
+			}
+			for($i=0;$options[$i];0){ //loop through options
+				// set field values. v stands for values, and may include record numbers instead of actual names - ie "1" or "2" instead of "Red" or "Blue"
+				$option_name_v = $options[$i++];
+				$option_value_v = $options[$i++];
+				$option_price = $options[$i++];
+				$option_weight = $options[$i++];
+
+				// get type of option - IE Select Input, Text Input, etc....
+				$option_type = get_field_val("Product_Options","Option_Type","record_number = '$option_name_v'");
+				if(!$option_type) $option_type = "Select Input";      // for backwards compatibility, in case this field is not set
+				$option_width = get_field_val("Product_Options","Field_Width","record_number = '$option_name_v'");
+				$option_height = get_field_val("Product_Options","Field_Height","record_number = '$option_name_v'");
+								
+				// set option names into an array. only put unique values in
+				if (is_array($option_names)) $not_in_array = !in_array($option_name_v, $option_names);
+				if($not_in_array || !$option_names) {
+					$option_names[] = $option_name_v;
+					$option_instruction[] = get_field_value("Product_Options",$option_name_v,"Instruction");
+					$brk = get_field_value("Product_Options",$option_name_v,"Break");
+					if($brk) {
+						$option_break[] = "<BR>";
+						} else {
+							$option_break[] = "";
+					}
+				}
+				// set relative values of fields for display only - changes record numbers to actual english equivelants - ie. "red" or "blue"
+				$option_name_d = get_field_value("Product_Options",$option_name_v,"Name");
+				$option_value_d = get_field_value("Product_Option_Values",$option_value_v,"Option_Value");
+				// set a variable to loop through later. $option[this key is value of option name][this key is to loop through later][values]
+				$temp["name_d"] = $option_name_d;
+				$temp["value_v"] = $option_value_v;
+				$temp["value_d"] = $option_value_d;
+				$temp["price"] = $option_price;
+				$temp["weight"] = $option_weight;
+				$temp["type"] = $option_type;
+				$temp["width"] = $option_width;
+				$temp["height"] = $option_height;
+	
+				$option[$option_name_v][]=$temp;
+			}
+			unset($display_options);
+			for ($i=0;$option_names[$i];$i++){ // loop through each option name
+				unset($key1);
+				$key1 = $option_names[$i]; // option name is key for next operation 
+				if (is_numeric($key1)) { // if option is blank, then all the below will fail...this will check to see if it is or not
+					// determine whether or not to show option details
+					$show_detail = get_field_val("Product_Options","Show_Detail","record_number = $key1");
+					
+					// determine whether to break after instruction or not
+					$brk = get_field_val("Product_Options","Break_After_Instruction","record_number = $key1");
+					if ($brk) {
+						$brk = "<br>";
+					} else {
+						unset ($brk);
+					}
+					// code to display link that pops up details on options
+					if ($show_detail) {
+						// get dimensions for popup window from fields in option record
+						$detail_window_width = get_field_val("Product_Options","Detail_Window_Width","record_number = \"$key1\"");
+						$detail_window_height = get_field_val("Product_Options","Detail_Window_Height","record_number = \"$key1\"");
+						$option_instruction[$i] = Popup_Window("$SC[cart_www_root]/product_option_details_popup.php?prn=$product[record_number]&orn=$key1",$option_instruction[$i],$detail_window_width,$detail_window_height,"yes","yes");
+					}
+	
+					if($option[$key1][0]['type'] == "Select Input") {
+					// ----------------- display 1 option as a SELECT input --------------------------------------------------------------
+						$display_options = $display_options."<span class=\"product_option_select\">";
+						$display_options = $display_options."$option_instruction[$i] $brk<SELECT NAME=\"option[]\">\r";
+						for ($k=0;$option[$key1][$k];$k++){
+							$price = $option[$key1][$k]["price"];
+							$weight = $option[$key1][$k]["weight"];
+							$select_value = $option[$key1][$k]["name_d"]."^^".$option[$key1][$k]["value_d"]."^^".$price."^^$weight";
+							if($price && ($price != "----")){
+								$select_text = $option[$key1][$k]["value_d"]." - ".$SC['currency'].$price;
+								} else {
+									$select_text = $option[$key1][$k]["value_d"];
+							}
+							$display_options=$display_options."<OPTION value=\"$select_value\">".$select_text."</OPTION>\r";
+						}
+						$display_options=$display_options."</SELECT></span>$option_break[$i]\r";
+					//------------------ end of displaying 1 option as a SELECT input  --------------------------------------------------------------------
+					} else {
+						if($option[$key1][0]['type'] == "Text Input" || $option[$key1][0]['type'] == "Textarea Input") {
+				// ----------------- display 1 option as a text input --------------------------------------------------------------
+							$current_option = $option[$key1][0];
+							unset ($option_cost);
+							if($current_option['price'] && $current_option['price'] != "----") $option_cost = "(additional ".$SC['currency'].$current_option['price'].")";
+							$display_options = $display_options."<div class=\"product_option_select\">";
+							$display_options = $display_options."<input name='option[]' type='hidden' value='----'>";
+							if($current_option['type'] == "Textarea Input") {
+								$option_style = "style='vertical-align: top; width: ".$current_option['width']."; height: ".$current_option['height']."'";
+							// below field has to be there, because option HAS to have a value, or it fails!
+								$display_options = $display_options."$option_instruction[$i] $option_cost $brk<textarea $option_style type='text' name='text_option[$i]'></textarea>\r";
+							} else {
+								$option_style = "style='width: ".$current_option['width']."'";
+								$display_options = $display_options."$option_instruction[$i] $option_cost<input type='text' $option_style type='text' name='text_option[$i]'>\r";
+							}
+							$display_options = $display_options."<input type='hidden' name='option_name[$i]' value='".$current_option['name_d']."'>\r";
+							$display_options = $display_options."<input type='hidden' name='option_price[$i]' value='".$current_option['price']."'>\r";
+							$display_options = $display_options."<input type='hidden' name='option_weight[$i]' value='".$current_option['weight']."'>\r";
+							$display_options = $display_options."<input type='hidden' name='option_type[$i]' value='".$current_option['type']."'>\r";
+							$display_options=$display_options."</div>$option_break[$i]\r";
+						}
+				//------------------ end of displaying 1 option as a text input  --------------------------------------------------------------------
+					}
+				}
+			}
+		} else {
+			$$field_name = $product[$field_name]; //$$field_name sets the field equal to its value for use in the template(s)
+	}
+
+}
+				if ($show_detail) $All_Option_Details_Link = Popup_Window("$SC[cart_www_root]/product_option_details_popup.php?prn=$product[record_number]&orn=all","Option Details", 600,600,"yes","yes");
+
+				$Detail_Link = "$SC[www_cart_page]?crn=$Category&rn=$product[record_number]&action=show_detail$SC[SID]";
+
+				// handle Sales Agreements if product has any, and if they are set to display with product
+				$agreements = get_records("REL_Products__Sales_Agreement","Table_2","Table_1 = $prod_rn");
+				for($a=0;$agreements[$a];$a++){
+					$agreement = $agreements[$a];
+					$agreement_rn = $agreement['Table_2'];
+					$agreement = get_records("Sales_Agreement","*","record_number = $agreement_rn");
+					$agreement = $agreement[0];
+
+					if ($agreement) {
+						unset ($file);
+						// read template file into an array, and replace variables
+						$file_array = file($SC['templates']['sales_agreement']);
+						for($x=0;$file_array[$x];$x++){
+							$file = $file.$file_array[$x];
+						}
+						if ($agreement['Display_Name']) {
+							$display_name = $agreement['Display_Name'];
+						} else {
+							$display_name = $agreement['Name'];
+						}
+						$file = str_replace('<?=$Name?>',$display_name,$file);
+						$file = str_replace('<?=$Agreement?>',$agreement['Agreement'],$file);
+						$file = str_replace('<?=$Width?>',$agreement['Width'],$file);
+						$file = str_replace('<?=$Height?>',$agreement['Height'],$file);
+						$file = str_replace('<?=$Print_Agreement_HREF?>',$SC['cart_www_root']."/sales_agreement.php?agreement_rn=$agreement_rn",$file);
+
+						$Agreement .= $file;
+					}
+				}
+				
+				// check to see if image files really exist
+				$img_srv_path = "$SC[site_isp_root]/$SC[image_folder]/$Image";
+				$thumb_img_srv_path = "$SC[site_isp_root]/$SC[image_folder]/$Thumbnail_Image";
+				if (!is_file($img_srv_path)) $Image = get_field_val("Store_Information","Missing_Image");
+				if (!is_file($thumb_img_srv_path)) $Thumbnail_Image = get_field_val("Store_Information","Missing_Thumbnail_Image");
+
+
+				if($SC['secure_page']) {
+					$image_root = $SC['site_secure_root'];
+				} else {
+					$image_root = $SC['site_www_root'];
+				}
+				$Thumbnail_Image = "$image_root/".$SC["image_folder"]."/$Thumbnail_Image";
+				$Image = "$image_root/".$SC["image_folder"]."/$Image";
+				$Large_Image_true = "$SC[site_isp_root]/".$SC["image_folder"]."/$Large_Image";
+				$Large_Image = "$image_root/".$SC["image_folder"]."/$Large_Image";
+				$add_to_cart_behavior = get_field_val("Store_Information","Add_to_Cart_Behavior","record_number = 1");
+
+				// handle add to cart behavior
+				if($add_to_cart_behavior == "go to checkout") {
+					$Form_Action = $SC['www_cart_page'];
+					$Show_Cart = "<input type=\"hidden\" name=\"show_cart\" value=\"1\">";
+				} else {
+					$Show_Cart = "<input type=\"hidden\" name=\"crn\" value=\"$HTTP_GET_VARS[crn]\">";
+					$Show_Cart .= "<input type=\"hidden\" name=\"rn\" value=\"$prod_rn\">";
+					$Show_Cart .= "<input type=\"hidden\" name=\"action\" value=\"$HTTP_GET_VARS[action]\">";
+				}
+
+				// add field to assist in making sure multiple adds to the cart don't happen when you click "back"
+				$Microtime = microtime();
+
+				if(is_file($Large_Image_true)) {
+					$Large_Image_HREF = $Large_Image ;
+					$Image_in_Large_Image_Link = "<a href='$Large_Image_HREF' target='new'><img border='0' src='$Image'></a>";
+					} else {
+					$Large_Image_HREF = "#";
+					$Image_in_Large_Image_Link = "<img border='0' src='$Image'>";
+				}
+				$Featured_Image = "$SC[site_www_root]/".$SC["image_folder"]."/$Featured_Image";
+				$Options = $display_options;
+
+				if(security_level("Store Admin")){
+						$Admin_Link = "<a class=\"small_link\" href=\"$SC[www_admin_page]?edit_records=1&selected_record_number=$product[record_number]&table=Products$SC[SID]\">(edit)</a>";
+					} else {
+						unset($Admin_Link);
+						}
+				$Add_to_Cart_img = get_image("Images","add_to_cart",0,0,1);
+				$Continue_Image = get_image("Images","continue_button",0,0,1);
+
+				$Name_Fixed = htmlspecialchars($Name);
+				$Hidden_Fields = "
+				<input type=\"hidden\" name=\"add_to_cart\" value=\"1\">
+				<input type=\"hidden\" name=\"base_price\" value=\"$Base_Price\">
+				<input type=\"hidden\" name=\"prod_rn\" value=\"".$product["record_number"]."\">
+				<input type=\"hidden\" name=\"prod_name\" value=\"$Name_Fixed\">";
+				
+				$Add_to_Cart = "$Hidden_Fields
+				<input type=\"image\" src=\"$Add_to_Cart_img\">\r";
+
+				// if inventory control is enabled, and item is out of stock
+				if($SC['inventory_control'] && $product['Number_in_Stock'] < 1){
+					$out_of_stock_ind = get_field_val("Store_Information","Out_of_Stock_Indicator");
+					if ($SC['out_of_stock_behavior']=="3") $Add_to_Cart = $out_of_stock_ind;
+					if ($SC['out_of_stock_behavior']=="4") $Add_to_Cart = $out_of_stock_ind.$Add_to_Cart;
+				}
+				
+				if($product["Show_Base_Price"]) {
+					$bp_pre = get_field_val("Store_Information","Base_Price","record_number = '1'");
+					if($Base_Price) $Base_Price = $bp_pre.$SC[currency].$Base_Price;
+					} else {
+						unset($Base_Price);
+						}
+// below checks to see if product is new based on "New" record in the Admin_Options table
+					$today=date("Y-m-d H:i:s"); 
+					$today=strtotime($today);
+					$product_date=$product["Date_Added_to_Cart"];
+					$product_date=strtotime($product_date);
+					$date_difference=(($today - $product_date)/86400); 
+					$new_length = get_field_val("Store_Information","New","record_number = '1'");
+					$date_difference = number_format($date_difference, 0);			// strip decimal places to make age of product in days a whole number
+
+					if($new_length){
+						if($new_length >= $date_difference) {
+							$New = get_image("Images","new");
+							} else {
+								unset($New);
+									}
+						}								
+					if (!$template){
+						if ($action=="show") $template = $SC[templates][show_product];
+//						if ($action=="show_detail") $template = $SC[templates][show_product_detail];
+					}
+					include $template;
+	}
+}
+
+
+// purpose of function is to show products for purchasing
+// $mode tells this function how to operate.
+// $linkto is page to post any links to
+// $drn is record number of category that will be displayed. set this for default use to show products based on a category
+// $where is optional. If using, this will overide $drn, and enable any WHERE string to be passed to this function for product queries
+// $limit added to handle new preview
+function show_products($mode,$linkto,$where,$limit=0){
+	global
+	$SC,$rn,$cart_isp_root,$action, $db,$crn,$start,$where,$qry,$search_mode,$search_type;
+	$table="Products";
+	$arrays = get_field_formats("Arrays","Products"); // get all fields that are arrays
+
+// fix New Products category
+	if ($crn == 1) $mode = "new_all";
+
+//------- set variables -------------------------------------------------------//
+	$empty_category_msg = "There are no products in this category at this time\r";
+
+// count products based on query
+	if ($qry || $mode == "new_all") { // if records found via search
+		$number_of_records = count_records("Products",$where);
+	} else { // records found by clicking category
+		$number_of_records = count_products($crn);
+	}
+	
+
+// everything below here is old and needs to be rewritten!!!!
+	if($action=="show" || $action=="show_detail"){
+		if($action!="show_lrg_img") {
+			if (!$number_of_records && $mode !="product_image_bar" && !children_exist($crn)) {
+				if (!$search_mode && $mode != "new_all" && $mode != "new preview") print $empty_category_msg;
+			}
+		
+//-----------set number of products to show per page --------------------//
+	//-------------- below is default option ----------------------------//
+		$show_limit_default = get_field_val("Store_Information","Products_per_Page","record_number = '1'");
+		if (!$show_limit_default) $show_limit_default = 55555555555555;  // if you want to show all items, set show_limit to a number larger than possible number of products in a category
+	// ----------- below is limit specified on category -------------//
+		$show_limit_cat = get_records("Categories","Products_per_page","record_number = \"$crn\"",0,0,0);
+		$show_limit_cat = $show_limit_cat[0]['Products_per_page'];
+		if (!$crn) $show_limit_cat = "DEFAULT"; // if doing a search, and $crn (category) isn't specified, use default number of items per page
+		if ($show_limit_cat == "DEFAULT" || !$show_limit_cat) {
+			$show_limit = $show_limit_default;
+			} else {
+				if (!$show_limit_cat) $show_limit = 55555555555555; // if you want to show all items, set show_limit to a number larger than possible number of products in a category
+				if ($show_limit_cat) $show_limit = $show_limit_cat;
+				};
+
+		if(!isset($start)) $start=0;
+		$stop = $start + $show_limit;
+
+		// section to set products variable, based on mode. 
+		// if user clicked on a category, set $products equal to all products in specified category, which was specified with the $crn variable
+		// (rn is record number of category)
+		if($mode == "cat_click") $products=get_products_from_category($crn,0,"LIMIT $start,$show_limit");
+		if ($mode == "new preview") $products=get_records("Products",0,$where,"Date_Added_to_Cart","DESC",0,"LIMIT 0,$limit");
+		if ($mode == "new_all") {
+			// get date cutoff, and number of items to show when previewing new items
+			$cutoff_days = get_field_val("Store_Information","New");
+			// in case someone enters invalid chars. in new field, this will default it to 14 days
+			if (!is_numeric($cutoff_days)) $cutoff_days = 14; 
+			$todays_date = date("Y-m-d");
+			// get current date in UNIX timestamp, and convert it to MySQL format, in $cutoff_date
+			$cutoff_unix_date = mktime (0,0,0,date("m")  ,date("d")-$cutoff_days,date("Y"));
+			$cutoff_date = date("Y-m-d",$cutoff_unix_date);
+
+			// below line will exclude out of stock items, if specified to do so in store settings
+			if($SC['inventory_control'] && $SC['out_of_stock_behavior'] == "1") $exclude_not_in_stock = "	AND Number_in_Stock > 0";
+			$where = "Not_for_Sale <> 1 AND Date_Added_to_Cart >= '$cutoff_date' $exclude_not_in_stock";
+			// set variables that this function needs to operate properly
+			// $GLOBALS['qry'] = "1"; // acts like a search
+			// $GLOBALS['action'] = "show";
+			//$GLOBALS['where'] = $where;
+			$products=get_records("Products",0,$where,"Date_Added_to_Cart","DESC",0,"LIMIT $start,$show_limit");
+			$number_of_records = count(get_records("Products",0,$where,"Date_Added_to_Cart","DESC"));
+		}
+		if (!$mode)	$products=get_records("Products",0,$where,"Name","ASC",0,"LIMIT $start,$show_limit");
+
+//---------------------- navigation section ------------------------------------------------------------------------------------//
+		unset($Page_Navigation);
+		if ($number_of_records > $show_limit) {
+// need to add show_products_mode variable to page nav links, or all products will not be shown!!!!
+		if($show_products_mode = "cat_click") $spm = "&show_products_mode=cat_click";
+	//-------- only print link to previous page, if previous page exists --------------------------//
+			$prev_start = $start - $show_limit;
+//			$prev_records = get_records($table,"record_number",$where,$sort_by,$sort_how,0,"LIMIT $prev_start,$show_limit");
+			if ($start > 0) $prev_records = 1;		
+			if ($prev_records) {
+				// queries need to be treated differently, hence the following code
+				if ($qry) {
+					$Page_Navigation = $Page_Navigation."<a style='text-decoration:underline; color: red' href='?qry=$qry&action=$action&search_type=$search_type&search_mode=$search_mode&start=$prev_start'>Back</a>\r";
+				} else {
+						$Page_Navigation = $Page_Navigation."<a style='text-decoration:underline; color: red' href='?crn=$crn&action=$action&start=$prev_start$spm'>Back</a>\r";
+				}
+			} else {
+				$Page_Navigation = $Page_Navigation."<font color=\"gray\" >Back</font>";
+			}
+			$Page_Navigation = $Page_Navigation."&nbsp;&nbsp;&nbsp";
+			
+	//------------ loop through products, and generate links to each page based on limit of items to show ------------//
+			for($page_num=1,$next_start=0;$next_start < $number_of_records;$next_start=$next_start+$show_limit,$page_num++){
+				if ($next_start == $start) {
+					$Page_Navigation = $Page_Navigation."<b>$page_num</b>&nbsp;\r";
+				} else {
+					// queries need to be treated differently, hence the following code
+					if ($qry) {
+						$Page_Navigation = $Page_Navigation."<a style='text-decoration:underline; color: red' href='?qry=$qry&action=$action&search_type=$search_type&search_mode=$search_mode&start=$next_start'>$page_num</a>&nbsp;\r";
+					} else {
+						$Page_Navigation = $Page_Navigation."<a style='text-decoration:underline; color: red' href='?crn=$crn&action=$action&start=$next_start$spm'>$page_num</a>&nbsp;\r";
+					}
+				}
+			}
+			$Page_Navigation = $Page_Navigation."&nbsp;&nbsp;&nbsp";
+	//-------- only print link to next page, if next page exists --------------------------//
+			$records_left = $number_of_records - $start; //records left is how many items are left to show from start, including start
+			if ($records_left > $show_limit) $more_records = 1;
+			if ($more_records) {
+				if ($qry) {
+					$Page_Navigation = $Page_Navigation."<a style='text-decoration:underline; color: red' href='?qry=$qry&action=$action&search_type=$search_type&search_mode=$search_mode&start=$stop'>Next</a>\r";
+				} else {
+					$Page_Navigation = $Page_Navigation."<a style=\"text-decoration:underline; color: red\" href=\"?crn=$crn&action=$action&start=$stop$spm\">Next</a>";
+				}
+			} else {
+				$Page_Navigation = $Page_Navigation."<font color=\"gray\" >Next</font>";
+			}
+			$Page_Navigation = $Page_Navigation."<br>";
+		}
+				
+	// set things that are specific to new product preview OR regular product display
+		if ($mode == "new preview") {
+			$products_per_row = get_field_val("Store_Information","New_Products_per_Row");
+			$header_template = $SC['templates']['new_product_preview_header'];
+			$product_template = $SC['templates']['new_product_preview'];
+			$footer_template = $SC['templates']['new_product_preview_footer'];
+			$separator_template = $SC['templates']['new_product_preview_separator'];
+			$New_Category_Name = get_field_val("Categories","Name","record_number = '1'");
+			if ($number_of_records > 1) $More_Than_One_New_Item = 1;
+		} else {
+			$products_per_row = get_field_val("Store_Information","Products_per_Row");
+			$header_template = $SC['templates']['show_product_header'];
+			$product_template = $SC['templates']['show_product'];
+			$footer_template = $SC['templates']['show_product_footer'];
+			$separator_template = $SC['templates']['show_product_separator'];
+		}
+
+		if(!$products_per_row) $products_per_row = 3;
+	
+		// calculate width of each TD for product display, for template use
+		$number_of_products = count($products);
+		if (!$number_of_products && $mode == "new preview") return;
+		if ($number_of_products < $products_per_row && $number_of_products) {
+			$TD_Width = round(100 / $number_of_products);
+		} else {
+			$TD_Width = round(100 / $products_per_row);
+		}
+		$TD_Width = "$TD_Width%";
+		$GLOBALS['TD_Width'] = $TD_Width;
+					
+		$products_displayed = 1; // this field will be incremeneted each time a product is displayed UNTIL it equals products_per_row, than it will get reset to 1
+		
+		include $header_template;
+		for($x=0;$products[$x];$x++){
+			// the following loops through all the fields in the products table, and sets each one as a variable equal to 
+			// the value of the field for this particular record number (product in this case)
+			// ie, $Name will equal name of product, $Description the description, etc....
+			$product = $products[$x];
+			show_product($product[record_number],$product_template);		
+
+			// finish up orphaned TD tags
+				if (!$products[$x+1]) {
+					$tds_remaining = $products_per_row - $products_displayed;
+					for($tds=1;$tds <= $tds_remaining; $tds++){
+						print "<td></td>";
+					}
+				}
+
+			// determine whether to start a new table row or not		
+				if ($products_displayed == $products_per_row) {
+					include $separator_template;
+					$products_displayed = 1; // reset counter
+				} else {
+					$products_displayed = $products_displayed + 1;
+				}
+		} // end of FOR
+		include $footer_template;
+	}
+}
+
+} // end of FUNCTION
+?>

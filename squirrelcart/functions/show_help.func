@@ -1,0 +1,30 @@
+<?
+/*
+	purpose of function is to show help for a field when in the admin section of squirrelcart.
+	required parameters are:
+	$table - should be set to the table name you need help on
+	$field - should be set to the field you want help with
+*/
+
+function Show_Help(){
+global
+$SC,$table,$field;
+
+
+if(!$table)	print "You must specify a table!";
+if(!$field) print "You must specify a field!";
+
+if($field && $table){
+	$record_number = get_field_val("Field_Help","record_number","Table_Name = \"$table\" AND Field_Name = \"$field\"");
+
+	// set variables for use in template
+	$Field_Name = str_replace("_"," ", $field);
+	// capture help from "Field_Help" table for specified field / table
+	$Help = get_field_val("Field_Help","Help","Table_Name = \"$table\" AND Field_Name = \"$field\"");
+	if(security_level("Squirrelcart Developer")) $Edit_Help_Link = "<a target=\"new\" class=\"small_link\" href=\"$SC[cart_www_root]/?edit_records=1&selected_record_number=$record_number&table=Field_Help\">(edit)</a>";
+	
+	include $SC[templates][show_help];
+	
+	}
+}
+?>

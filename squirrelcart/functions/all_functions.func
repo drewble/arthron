@@ -1,0 +1,42 @@
+<?
+// Purpose of this file is to include any *.func function files
+// in functions directory
+
+function GetDirArrayFirst($sPath) 
+{ 
+global
+$cart_isp_root;
+/* Purpose of this function is to load file names in a directory into an array*/
+
+//Load Directory Into Array 
+$handle=opendir($sPath); 
+while ($file = readdir($handle)) 
+{
+if ($file != "." && $file != "..")
+{$retVal[count($retVal)] = $file; }
+}
+
+//Clean up and sort 
+closedir($handle); 
+sort($retVal); 
+return $retVal; 
+};
+
+$functions=GetDirArrayFirst("$cart_isp_root/functions");
+
+	$x = 0;
+	while ($functions[$x]!=false)
+	{
+		$file = $functions[$x++];
+		$a=substr(strrchr($file,"."),1);
+
+	    if ($a == "func") {
+			if ($file != "all_functions.func") {
+//enable below for testing
+//				print "file is $file<br>";
+				include "$cart_isp_root/functions/$file";
+			}; 
+		}
+	}
+;
+?>

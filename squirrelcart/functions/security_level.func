@@ -1,0 +1,21 @@
+<?
+// purpose of function is to check if user is in a particular group. returns 1 (true) if user is in group.
+// $check_level needs to equal the name of a group
+function security_level($group_name){
+global
+$SC;
+
+	$user_rn = $SC[user][record_number];
+	$group_rn = get_field_val("Groups","record_number","Name = '$group_name'");
+	if($user_rn && $group_rn){
+		$query = "
+		SELECT ug.record_number
+		FROM REL_Users__Groups ug
+		WHERE ug.Table_1 = $user_rn
+		AND ug.Table_2 = $group_rn;";
+		$result = mysql_query ($query);
+		$row = mysql_fetch_array ($result);
+	}
+	if ($row) return 1;
+}
+?>

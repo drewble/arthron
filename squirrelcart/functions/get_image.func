@@ -1,0 +1,109 @@
+<?
+// use EITHER name OR (field AND where)
+// 5th parameter will return the path to the image, instead of an image tag
+// if set to 1, it returns URL path, if set to 2, it returns server path
+// file modified on 7/13/03 for v1.1.1 to resolve IMG tag being returned when image is not available, causing a broken image
+// file modified on 10/13/2003 - added ability to specifiy a different alt property
+function get_image($table,$name=0,$field=0,$where=0,$src=0,$alt=0){
+global
+$SC,$site_isp_root;
+
+	$table = str_replace(" ","_",$table);
+	if($name) {
+		$where = "Name = '$name'";
+		$image = get_records($table,0,$where,0,0);
+		$image = $image[0];
+		$image_path = $image["Image"];
+		if($table == "Images") {
+			// check current theme for file first, both gif and jpg
+			$image_srv_path = "$SC[theme_dir]/$image[Name].gif";
+			if(file_exists($image_srv_path)) {
+				if($SC['secure_page']) {
+					$image_url = "$SC[theme_secure_dir]/$image[Name].gif";
+				} else {
+					$image_url = "$SC[theme_www_dir]/$image[Name].gif";
+				}
+			} else {
+				$image_srv_path = "$SC[theme_dir]/$image[Name].jpg";
+				if(file_exists($image_srv_path)) {
+					if($SC['secure_page']) {
+						$image_url = "$SC[theme_secure_dir]/$image[Name].jpg";
+					} else {
+						$image_url = "$SC[theme_www_dir]/$image[Name].jpg";
+					}
+				} else {
+					// if it's not there, then check default squirrelcart theme
+					$image_srv_path = "$SC[default_theme_dir]/$image[Name].gif";
+					if(file_exists($image_srv_path)) {
+						if($SC['secure_page']) {
+							$image_url = "$SC[default_theme_secure_dir]/$image[Name].gif";
+						} else {
+							$image_url = "$SC[default_theme_www_dir]/$image[Name].gif";
+						}
+					} else {
+						$image_srv_path = "$SC[default_theme_dir]/$image[Name].jpg";
+						if(file_exists($image_srv_path)) {
+							if($SC['secure_page']){
+								$image_url = "$SC[default_theme_secure_dir]/$image[Name].jpg";
+							} else {
+								$image_url = "$SC[default_theme_www_dir]/$image[Name].jpg";
+							}
+						}
+					}
+				}
+			}
+		} else {
+			$image_srv_path = "$site_isp_root/$image_path";
+			if ($SC['secure_page']) {
+				$image_url = $SC['site_secure_root']."/".$image_path;
+			} else {
+				$image_url = $SC['site_www_root']."/".$image_path;
+			}
+		}
+		
+//line below keeps this function from generating an ugly error if it can't find the image file
+		if(!file_exists($image_srv_path)) return;
+		
+		$size = GetImageSize($image_srv_path);
+		if (!$alt) $alt= $image["Alt"];
+		$class=str_replace(".","",$class);
+		$class="class=\"$class\"";
+		if($src==1) {
+			return $image_url;
+		} else {
+			if($src==2) {
+				return $image_srv_path;
+			} else {
+				return "<IMG border=\"0\" $class src=\"$image_url\" alt=\"$alt\" $size[3]>";
+			}
+		}
+	} else {
+		$image_path = get_field_val($table,$field,$where);
+		if(strstr($image_path,"squirrelcart")) {
+			$image_isp_path = "$SC[site_isp_root]/$image_path";
+			if ($SC['secure_page']){
+				$image_www_path = "$SC[site_secure_root]/$image_path";
+			} else {
+				$image_www_path = "$SC[site_www_root]/$image_path";
+			}
+		} else {
+			$image_isp_path = "$SC[site_isp_root]/$SC[image_folder]/$image_path";
+			if ($SC['secure_page']){
+				$image_www_path = "$SC[site_secure_root]/$SC[image_folder]/$image_path";
+			} else {
+				$image_www_path = "$SC[site_www_root]/$SC[image_folder]/$image_path";
+			}
+		}
+		if (file_exists($image_isp_path)) {
+			$size = GetImageSize($image_isp_path);
+			if($src) {
+				return $image_www_path;
+			} else {
+				return "<IMG border=\"0\" src=\"$image_www_path\" $size[3]>";
+			}
+		} else {
+			return;
+		}
+	}
+}
+?>

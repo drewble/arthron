@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+	<title>Squirrelcart Documentation</title>
+	<link rel='stylesheet' type='text/css' href='default.css'>
+</head>
+
+<body>
+<div class="sectionheader">v1.1.0 to v1.2.0 Upgrade Information</div>
+
+<b>1.</b> The file used to display Squirrelcart's main page has changed. In version 1.1.0 and earlier, this file was called demo.php. It has been renamed to store.php in version 1.2.0, and it's content has changed a bit. If you have customized your copy of this file, you will need to update it. Please refer to the following changes and edit your file as needed.
+<div class="indent">
+	The code for the navigation on the left side of the page has changed from:<br><br>
+	<div class="indent">
+		<div class="php">&lt;? eval(content_container("Store Navigation"))?&gt;</div>
+		to:<br><br>
+		<div class="php">&lt;? eval(content_container("Left Navigation"))?&gt;</div>
+	</div>
+	
+	The code for the navigation on the right side of the page has changed from:<br><br>
+	<div class="indent">
+		<div class="php">&lt;? include "$cart_isp_root/product_preview.php";?&gt;</div>
+		to:<br><br>
+		<div class="php">&lt;? eval(content_container("Right Navigation"));?&gt;</div>
+	</div>
+
+	The code that displays the cart's content has been separated into different sections as follows:<br><br>
+	<div class="indent">
+		demo.php (v1.1.0 and earlier):
+		<div class="php">
+		&lt;?<br>
+		include "$cart_isp_root/cart_content.php";<br>
+		if ($SESSION['show_home_page']) {<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;	include "home.php";<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;	show_categories_detail();<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+		?&gt;
+		</div>
+		store.php (v1.2.0 and newer):
+		<div class="php">
+		&lt;?<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if ($SESSION['show_home_page']) {<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;include "home.php";<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {<br>
+		?&gt;<br>
+		&lt;table width="100%" border="0"&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;tr&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;td style="padding-bottom: 3; padding-top: 0"&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;? include "$cart_isp_root/crumb_navigation.php" ?&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/td&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/tr&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;tr&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;td class="content"&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;?<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Cart Content section<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;include "$cart_isp_root/cart_content.php" ;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/td&gt;<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/tr&gt;<br>
+		&lt;/table&gt;<br>
+		&lt;? } ?&gt;<br>
+		</div>
+	</div>
+	The following lines have been added to the bottom of the the file:<br><br>
+	<div class="indent">
+		<div class="php">
+		&lt;!-- Removal of this section of code will violate the Squirrelcart End User License Agreement --&gt;<br>
+		&lt;? squirrelcart_link();?&gt;<br>
+		&lt;!-- Removal of this section of code will violate the Squirrelcart End User License Agreement --&gt;
+		</div>
+	</div>
+</div>
+Failure to update your main cart page with these changes will likely cause errors to be displayed when browsing the site. If you did not significantly modify your cart page from the default settings when you did your initial install, you will be better off replacing it with the new store.php file. If you do this, be sure to update the first line that includes your config file.
+
+<p>
+<b>2.</b>
+Special precautions must be taken when upgrading your database from v1.1.0 to v1.2.0. Please be aware that the following tables will be deleted and recreated when you apply the v1.1.0 to v1.2.0 DB upgrade file:<br>
+<br>
+<div class="indent">
+	Content<br>
+	Content_Container<br>
+	REL_Content_Container<br>
+	Shipping_Methods<br>
+	States<br>
+	Countries<br>
+	Payment_Gateways<br>
+</div>
+
+For the average user, this will mean that you should document your Shipping Methods, and Payment Gateway settings PRIOR to upgrading your database. You will then need to reconfigure your Payment Gateway and Shipping Methods after applying the database upgrade.<br>
+<br>
+Because of the change to the Countries table, you should also check your Address Form Settings to make sure they are correct after applying the upgrade.
+</p>
+</body>
+</html>

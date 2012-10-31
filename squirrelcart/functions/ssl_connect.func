@@ -1,0 +1,167 @@
+<?
+/* 
+ file created on 10/24/02 for v1.1.0
+ purpose of this function is to connect to a URL via securely via OpenSSL and CURL,
+ and return the resulting page.
+ 
+ $url as string - must be an https URL
+ $variables as array - optional paramater. if used, it will post a urlencoded query string to the url specified
+ $parse_variables as int - optional parameter. can be 1 or 0. defaults to 0. 
+ 										if set to 1, it will return an array of variables and values IF the resulting page contained them
+										within the text, in the format like the below lines:
+											dog=fido
+											cat=misty
+											rabbit=bugs
+										the key name will be the variable name. see example.
+$test as int - optional. defaults to 0. if set to 1, it will output some info to the screen for testing purposes
+$timeout as int - optional. defaults to 30. this is the amount of time in seconds that the server will wait for a repsonse from the URL
+$no_headers as int - optional. defaults to 0. if set to 1, this function will strip the HTTP headers from the result, and return just the HTML below the header that contains a 200 status code
+
+ example 1:
+	 $book['Name']="The Shining";
+	 $book['Pages']=385;
+	 $book['Author']='Stephen King';
+	 $url="https://somesite.com/somepage.php";
+	 $result=ssl_connect($url,$book);
+
+the above code will send a secure request for the following page:
+	https://somesite.com/somepage.php?Name=The%20Shining&Pages=385&Author=Stephen%20King
+	the variable $result will be a string equal to the page that the url returned.
+	
+example2 using optional third parameter:
+	 $book['Name']="The Shining";
+	 $book['Pages']=385;
+	 $book['Author']='Stephen King';
+	 $url="https://somesite.com/somepage.php";
+	 $result=ssl_connect($url,$book,1);
+	 print $result['dog']."<br>";
+     print $result['cat']."<br>";
+ 	 print $result['misty']."<br>";
+
+the above code would return:
+	fido<br>
+	misty<br>
+	bugs<br>
+*/
+
+function ssl_connect($url,$variables=0,$parse_variables=0,$test=0,$timeout=30,$no_headers=0){
+	global $SC;
+	define(UMURL,$url);
+	define(UMTIMEOUT,$timeout);
+	
+	// check for presence of CURL
+	if (!function_exists("curl_init")){
+		// only display CURL error message if it hasn't been displayed before
+		if (!$SC['no_curl']) print "\n<!-- Squirrelcart Error: You are using a service which requires CURL, and it is not enabled on your web server. -->";
+		$SC['no_curl'] = 1;
+		return;
+	}
+	// if URL has https in it, check for presence of OpenSSL
+	
+
+
+	$ch = curl_init(UMURL);
+		
+	// set some options for the connection
+	curl_setopt($ch, CURLOPT_HEADER, 1);
+	curl_setopt($ch,CURLOPT_POST,1);
+	curl_setopt($ch,CURLOPT_TIMEOUT,UMTIMEOUT);
+	curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+
+//	curl_setopt($ch,CURLOPT_VERBOSE,1); 	
+	
+	// format the data
+
+	// get keys. these will be equal to the variable names required by the gateway
+	if($variables) {
+		$keys = array_keys($variables);
+		
+		// loop through keys, and setup URL query string
+		for($x=0;$keys[$x];$x++){
+			$key = $keys[$x];
+			$value = rawurlencode($variables[$key]);
+			if ($query) {
+				$query =  $query."&$key=".$value;
+				} else {
+					$query =  "$key=".$value;
+			}			
+		}
+		unset($value);
+	}
+	
+	// attach the data
+	curl_setopt($ch,CURLOPT_POSTFIELDS,$query);
+//print "query is $query<br>";
+	
+	// run the transfer
+	$result=curl_exec ($ch);
+	curl_close ($ch);
+
+	
+// added for authorize.net
+if($no_headers) {
+	// store response in an array, where each value is a separate line
+	$lines=split("\n",$result);
+	// loop through response line by line
+	for($i=0; $i < count($lines); $i++){
+		$line = $lines[$i];
+		if ($get_html) { // if here, than the last status code was a 200, and we are looking for HTML content
+			if (ord($lines[$i-1]) == 13) { // check if last line was a CRLF. 13 is ASCII for a carriage return
+				$new_result[] = $line;
+			}
+		}
+		// check this line to see if it is an HTTP status code in it
+		$check_string = substr($line,0,5); 
+		// if current line contains an HTTP status code
+		if ($check_string == "HTTP/") {
+			// status code is 200, get the HTML out of this response
+			if (strstr($line,"200")) $get_html =1;
+		}
+	}
+	if ($new_result) $result = $new_result;
+}
+	
+	
+	
+	//get the result and parse it for the response line.
+	if(!strlen($result))
+	{
+		$this->result="Error";
+		$this->resultcode="E";
+		$this->error="Error connecting to URL $url.";
+		return false;			
+	}
+	// gather info from resulting page and set variables accordingly
+	if($parse_variables) {
+		$tmp=split("\n",$result);
+		for($i=0; $i < count($tmp); $i++){
+			// below line checks for presence of an = sign on the line we are on, and assumes if there is one
+			// then we can assume it is a variable being returned, and sets it in an array with the name of the
+			// variable to the left of the equal sign as the key, and the value to the right of the equal sign as the value.
+			if(strstr($tmp[$i],"=")) {
+				if ($str) {
+					$str = $str."&".$tmp[$i];
+					} else {
+					$str = $tmp[$i];
+				}
+			}
+		}
+		parse_str($str,$result);
+	}
+
+	if($test) {
+		if($parse_variables){
+			//test section
+		    $keys=array_keys($result);
+			// loop through result array and dump to screen for testing
+			for($x=0;$keys[$x];$x++){
+				$key=$keys[$x];
+				print "<b>$key: </b>".$result[$key]."<br>";
+			}
+			} else {
+			print "<b>result:</b><br>$result<br>";
+		}
+	}
+	return $result;
+}
+?>

@@ -1,0 +1,17 @@
+<?
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+function login(){
+global $login_action,$username, $password, $SC,$PHP_SELF;
+	if($SC['login_attempt'] == "failed"){
+		$Error = "<span class=\"action_msg\">Login failed!</span> ";
+		unset($SC['login_attempt']);
+	}
+		// if you need to send the SID when switching to an SSL URL, then set a variable accordingly
+		$New_Account_Link = "<a href=\"$SC[secure_cart_page]?add_user=1$SC[SID]\">Get an Account</a>\r";
+		$Forgotten_Password_Link = "<a href='$SC[www_cart_page]?forgot_pw=1$SC[SID]'>Forgot Password?</a>\r";
+		$Forgotten_Password_HREF = "$SC[www_cart_page]?forgot_pw=1$SC[SID]";
+	if(!$SC['user']) {
+		include $SC['templates']['login'];
+		}
+} // end of FUNCTION
+?>

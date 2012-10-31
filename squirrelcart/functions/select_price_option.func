@@ -1,0 +1,18 @@
+<?
+// $product has to be an array contain all the values for 1 product
+function select_price_option($product){
+//	print "product price is ".$product["Price"]."<br>\r";
+//	print "product description is ".$product["Description"]."<br>\r";
+	
+	$array_price=array_to_sql("explode",$product["Price"]);
+	$array_price_description=array_to_sql("explode",$product["Price_Description"]);
+	for($x=0;$array_price[$x];$x++){
+		$price=$array_price[$x];
+		$display_option=$price." - ".$array_price_description[$x];
+		$option_inputs=$option_inputs."<OPTION value=\"$price\" >$display_option</OPTION>\r";
+	}
+
+	if(!$array_price[1]) return $product["Price"];
+	if($array_price) return "\r<SELECT name=\"Price_Option\">\r".$option_inputs."</SELECT>";
+}
+?>

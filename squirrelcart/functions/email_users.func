@@ -1,0 +1,133 @@
+<?
+// function emails selected users in admin section
+// $users is an array containing the record numbers of the users to email
+
+function email_users($users){
+global $HTTP_POST_VARS,$SC;
+
+if ($users) $SC['email_users'] = $users;
+if (!$users) $users = $SC['email_users'];
+if (!$users) return; // keeps reposts from running anything below
+
+	// loop through each user's record number, and set all email addresses into an array named $email_addresses
+		for($x=0;$users[$x];$x++){
+			$user = $users[$x];
+			$email_address = get_field_val("Customers","Email_Address","record_number = '$user'");
+			if($email_address) {
+				$email_addresses[] = $email_address;
+				if($email_addresses['string']) {
+					$email_addresses['string'] = $email_addresses['string'].",".$email_address;
+				} else {
+					$email_addresses['string'] = $email_address;
+				}
+			}
+		}
+
+
+	// validate fields when form is posted
+	if($HTTP_POST_VARS['post_email_users']) {
+		if (!$HTTP_POST_VARS['email_users_from_address']) {
+			$missing['email_users_from_address'] = $SC['missing_ind'];
+			$missing_message = $missing_message."<div class='action_msg'>You must enter a \"From Address\"</div>";
+		}
+		if (!$HTTP_POST_VARS['email_users_from_display']) {
+			$missing['email_users_from_display'] = $SC['missing_ind'];
+			$missing_message = $missing_message."<div class='action_msg'>You must enter a \"From Display Address\"</div>";
+		}
+		if (!$HTTP_POST_VARS['email_users_subject']) {
+			$missing['email_users_subject'] = $SC['missing_ind'];
+			$missing_message = $missing_message."<div class='action_msg'>You must enter a \"Subject\"</div>";
+		}
+		if (!$HTTP_POST_VARS['email_users_message']) {
+			$missing['email_users_message'] = $SC['missing_ind'];
+			$missing_message = $missing_message."<div class='action_msg'>You must enter a \"Message\"</div>";
+		}
+	}
+
+	
+	// all fields have passed validation, send email
+	if($HTTP_POST_VARS['post_email_users'] && !$missing){
+		$subject = stripslashes($HTTP_POST_VARS['email_users_subject']);
+		$message = stripslashes($HTTP_POST_VARS['email_users_message']);
+		$from_display = stripslashes($HTTP_POST_VARS['email_users_from_display']);
+		send_email_out("",$subject,$message,$from_display,$HTTP_POST_VARS['email_users_from_address'],"",$email_addresses['string']);
+		print "<div style='font-weight: bold'>Message sent to: </div><br>".$email_addresses['string']."<br><br>";
+		unset ($SC['email_users']);
+	}
+	
+	
+	// set values of fields on form based on whether or not it has been posted
+	if(!$HTTP_POST_VARS['post_email_users']) {
+		$company_name = get_field_val("Store_Information","Company_Name");
+		// get from address choices in array
+		$customer_service_email = get_field_val("Store_Information","Customer_Service_Email");
+		$email_orders_to = explode(",",get_field_val("Store_Information","Email_Orders_To"));
+		if ($customer_service_email) {
+			$from_address = $customer_service_email;
+			$from_display = "$company_name Customer Service";
+		} else {
+			$from_address = $email_orders_to[0];
+			$from_display = $from_address;
+		}
+	} else {
+		$from_address = $HTTP_POST_VARS['email_users_from_address'];
+		$from_display = $HTTP_POST_VARS['email_users_from_display'];
+		$subject = $HTTP_POST_VARS['email_users_subject'];
+		$message = $HTTP_POST_VARS['email_users_message'];
+	}
+		
+	// display email form if not posting
+	if(!$HTTP_POST_VARS['post_email_users'] || $missing){
+
+		if($missing) print $missing_message."<br>".$SC['missing_ind']." indicates a missing field<br><br>";
+		$Header = "Emailing Customers";
+		$Content .= "
+			<form action='' method='post'>
+				<table align='center' border=0 width='630'>
+					<tr>
+						<td align='right'>From:</td>
+						<td>
+							<input type='text' name='email_users_from_address' value='$from_address'>".$missing['email_users_from_address']."
+						</td>
+					</tr>
+					<tr>
+						<td align='right'>From Display:</td>
+						<td>
+							<input style='width: 250' type='text' name='email_users_from_display' value='$from_display'>".$missing['email_users_from_display']."
+						</td>
+					</tr>
+					<tr><td><br><br></td></tr>
+					<tr>
+						<td width='150' align='right'>Send using BCC to:</td>
+						<td>
+							".$email_addresses['string']."
+						</td>
+					</tr>
+					<tr><td><br><br></td></tr>
+					<tr>
+						<td align='right'>Subject:</td>
+						<td><input style='width: 500' type='text' name='email_users_subject' value='$subject'>".$missing['email_users_subject']."</td>
+					</tr>
+					<tr><td><br><br></td></tr>
+					<tr>
+						<td align='right' valign='top' >Message:</td>
+						<td><textarea style='width: 500; vertical-align: top; height: 300' name='email_users_message'>$message</textarea>".$missing['email_users_message']."</td>
+					</tr>
+					<tr>
+						<td>
+						</td>
+						<td align='center'>
+							<input type='hidden' name='email_selected_users' value='1'>
+							<input type='submit' name='post_email_users' value='Send Email'>
+						</td>
+					</tr>
+				</table>
+			</form>
+			";
+			$ThemeDir = $SC['theme_www_dir'];
+			include $SC['templates']['window'];
+	}
+
+
+}
+?>

@@ -1,0 +1,544 @@
+<?php
+// file modified on 10/22/2003 for v1.3 - changed function get_ups_rate to properly fault to correct ship to address type when not present
+// file modified on 11/16/2003 for v1.3.0 - to remove unused parameter from xml_post_sc function
+
+function ups_registered(){
+// purpose of function is to return 1 if we have ups registration information in UPS record
+	$UPS_Agreed = get_field_val("Shipping_Couriers","UPS_Agreed","record_number = '2'");
+	return $UPS_Agreed;
+}
+
+function get_ups_ala_req(){
+// purpose of this function is to return a string containing the access license agreement request for UPS, formatted as XML
+$ala_req .= "<?xml version=\"1.0\" encoding = \"ISO-8859-1\"?>";
+$ala_req .= "<AccessLicenseAgreementRequest>";
+$ala_req .= "<Request>";
+$ala_req .= "<TransactionReference>";
+$ala_req .= "<CustomerContext>License Test</CustomerContext>";
+$ala_req .= "<XpciVersion>1.0001</XpciVersion>";
+$ala_req .= "</TransactionReference>";
+$ala_req .= "<RequestAction>AccessLicense</RequestAction>";
+$ala_req .= "</Request>";
+$ala_req .= "<DeveloperLicenseNumber>DB8CE1D16C395DD4</DeveloperLicenseNumber>";
+$ala_req .= "<AccessLicenseProfile>";
+$ala_req .= "<CountryCode>US</CountryCode>";
+$ala_req .= "<LanguageCode>EN</LanguageCode>";
+$ala_req .= "</AccessLicenseProfile>";
+$ala_req .= "<OnLineTool>";
+$ala_req .= "<ToolID>TrackXML</ToolID>";
+$ala_req .= "<ToolVersion>1.0</ToolVersion>";
+$ala_req .= "</OnLineTool>";
+$ala_req .= "<OnLineTool>";
+$ala_req .= "<ToolID>RateXML</ToolID>";
+$ala_req .= "<ToolVersion>1.0</ToolVersion>";
+$ala_req .= "</OnLineTool>";
+$ala_req .= "</AccessLicenseAgreementRequest>";
+return $ala_req;
+}
+
+function show_ups_al_form($missing=0){
+// purpose of function is to return the form user needs to fill out to make an access license request (name, address, etc..)
+global $SESSION,$HTTP_POST_VARS,$UPS_Error_Message,$UPS_Logo;
+	$ups_info = $HTTP_POST_VARS['ups_info'];
+// grab information about user to autopopulate the form based on info in the SC database
+	if (!$ups_info) {
+		$store_info = get_records("Store_Information","*");
+		$store_info = $store_info[0];
+		$ups_info['Name'] = $SESSION['user']['First_Name']." ".$SESSION['user']['Last_Name'];
+		$ups_info['CompanyName'] = $store_info['Company_Name'];
+		$ups_info['AddressLine1'] = $SESSION['user']['Street'];
+		$ups_info['AddressLine2'] = $SESSION['user']['Street_2'];
+		$ups_info['City'] = $SESSION['user']['City'];
+		$state_code = get_field_val("States","Abbreviation","record_number = '".$SESSION['user']['State_or_Province']."'");
+		$country_code = get_field_val("Countries","Alpha_2","record_number = '".$SESSION['user']['Country']."'");
+		$ups_info['StateProvinceCode'] = $state_code;
+		$ups_info['CountryCode'] = $country_code;
+		$ups_info['PostalCode'] = $SESSION['user']['Postal_Code'];
+		$ups_info['EMailAddress'] = $SESSION['user']['Email_Address'];
+		$ups_info['PhoneNumber'] = $SESSION['user']['Phone'];
+		$ups_info['CompanyURL'] = $store_info['URL'];
+	}
+	$required_ind = $SESSION['required_ind'];
+// set required fields
+	$required['CompanyName'] = $required_ind;
+	$required['AddressLine1'] = $required_ind;
+	$required['City'] = $required_ind;
+	$required['StateProvinceCode'] = $required_ind;
+	$required['PostalCode'] = $required_ind;
+	$required['CountryCode'] = $required_ind;
+	$required['Name'] = $required_ind;
+	$required['Title'] = $required_ind;
+	$required['EmailAddress'] = $required_ind;
+	$required['PhoneNumber'] = $required_ind;
+	$required['CompanyURL'] = $required_ind;
+	$required['SalesRepContact'] = $required_ind;
+	// if form was posted, and missing a field, unset the required ind for that field so it doesn't show on form
+	if ($missing) {
+		$required_field_names = array_keys($required);
+		for($x=0;$required_field_names[$x];$x++){
+			$required_field_name = $required_field_names[$x];
+			if ($missing[$required_field_name]) {
+				unset($required[$required_field_name]);
+			}
+		}
+		$missing_message = $missing['error_message'];
+	}
+	// generate options for StateProvinceCode select box for use in template
+	$states = get_records("States","*","","Name","ASC");
+	if ($ups_info['StateProvinceCode']) $state_selected[$ups_info['StateProvinceCode']] = "selected";
+	for($x=0;$states[$x];$x++){
+		$state = $states[$x];
+		if ($state['Abbreviation']) { // only list states that have a two letter abbreviation code
+			$StateProvinceCodeOptions .= "<option ".$state_selected[$state['Abbreviation']]." value=\"".$state['Abbreviation']."\" >".$state['Name']."</option>\r";
+		}
+	}
+	// generate options for CountryCode select box for use in template
+	$countries = get_records("Countries","*","UPS_Online_Tools_Support","Name","ASC");
+	if ($ups_info['CountryCode']) $country_selected[$ups_info['CountryCode']] = "selected";
+	for($x=0;$countries[$x];$x++){
+		$country = $countries[$x];
+		$CountryCodeOptions .= "<option ".$country_selected[$country['Alpha_2']]." value=\"".$country['Alpha_2']."\" >".$country['Name']."</option>\r";
+	}
+
+	include "includes/ups_al_request.php";
+}
+
+function post_ups_al_form(){
+// purpose of this function is to handle the data posted from the ups_al_request form (name, address, etc...)
+global $SESSION,$HTTP_POST_VARS;
+// shorten ups info variable
+	$ups_info = $HTTP_POST_VARS['ups_info'];
+// set required fields
+	$required['CompanyName'] = $required_ind;
+	$required['AddressLine1'] = $required_ind;
+	$required['City'] = $required_ind;
+	$required['StateProvinceCode'] = $required_ind;
+	$required['PostalCode'] = $required_ind;
+	$required['CountryCode'] = $required_ind;
+	$required['Name'] = $required_ind;
+	$required['Title'] = $required_ind;
+	$required['EMailAddress'] = $required_ind;
+	$required['PhoneNumber'] = $required_ind;
+	$required['CompanyURL'] = $required_ind;
+	$required['SalesRepContact'] = $required_ind;
+// check presence of requireld fields	
+	$required_field_names = array_keys($required);
+	for($x=0;$required_field_names[$x];$x++){
+		$required_field_name = $required_field_names[$x];
+		if (!$ups_info[$required_field_name]) {
+			$missing[$required_field_name] = $SESSION['missing_ind'];
+		}
+	}
+// validate data in certain fields to ensure compatibilty with UPS tools
+	if (!$missing['PhoneNumber']){
+		$phone_check = str_replace("-","",$ups_info['PhoneNumber']);
+		$phone_check = str_replace(" ","",$phone_check);
+		$phone_check = str_replace(".","",$phone_check);
+		$phone_check = str_replace("(","",$phone_check);
+		$phone_check = str_replace(")","",$phone_check);
+		if (!is_numeric($phone_check)) {
+			$missing['PhoneNumber'] = $SESSION['missing_ind'];
+			$missing['error_message'] .= "<div class=\"action_msg\">Phone Number must contain numbers only!</div>";
+		}
+	}
+	if (!$missing['EMailAddress']){
+		if (!strstr($ups_info['EMailAddress'],"@") || !strstr($ups_info['EMailAddress'],".")) {
+			$missing['EMailAddress'] = $SESSION['missing_ind'];
+			$missing['error_message'] = "<div class=\"action_msg\">Email address is not properly formatted.</div>";
+		}
+	}
+	if ($missing) {
+		$missing['error_message'] = "<br>".$missing['error_message']."<div class=\"action_msg\">Some required information is missing!</div><br>".$SESSION['missing_ind']." indicates missing information";
+		show_ups_al_form($missing);
+		return "missing";
+	} else {
+		$ups_info['PhoneNumber'] = $phone_check;
+		return $ups_info;
+	}
+}
+	
+function post_ups_al_req($ups_info) {
+// purpose of function is to post all contact info over to UPS to obtain an access license
+global
+$SESSION,$license_url;
+		// everything validated, let's send it to UPS
+		// reformat variables for use in next XML post to UPS
+		$ups_info['CompanyURL'] = str_replace("http://","",$ups_info['CompanyURL']);
+		$ups_info['CompanyURL'] = str_replace("https://","",$ups_info['CompanyURL']);
+		// format XML to be sent to UPS
+		if($ups_info['AddressLine2']) $AddressLine2 = "<AddressLine2>".$ups_info['AddressLine2']."</AddressLine2>\n";
+		if($ups_info['ShipperNumber']) $ShipperNumber = "<ShipperNumber>".$ups_info['ShipperNumber']."</ShipperNumber>\n";
+		$al_req="<?xml version=\"1.0\" encoding = \"ISO-8859-1\"?>
+<AccessLicenseRequest xml:lang=\"en-US\">
+	<Request>
+		<TransactionReference>
+			<CustomerContext>License Test</CustomerContext>
+			<XpciVersion>1.0001</XpciVersion>
+		</TransactionReference>
+		<RequestAction>AccessLicense</RequestAction>
+		<RequestOption>AllTools</RequestOption>
+	</Request>
+	<CompanyName>".$ups_info['CompanyName']."</CompanyName>
+	<Address>
+		<AddressLine1>".$ups_info['AddressLine1']."</AddressLine1>
+		$AddressLine2
+		<City>".$ups_info['City']."</City>
+		<StateProvinceCode>".$ups_info['StateProvinceCode']."</StateProvinceCode>
+		<PostalCode>".$ups_info['PostalCode']."</PostalCode>
+		<CountryCode>".$ups_info['CountryCode']."</CountryCode>
+	</Address>
+	<PrimaryContact>
+		<Name>".$ups_info['Name']."</Name>
+		<Title>".$ups_info['Title']."</Title>
+		<EMailAddress>".$ups_info['EMailAddress']."</EMailAddress>
+		<PhoneNumber>".$ups_info['PhoneNumber']."</PhoneNumber>
+	</PrimaryContact>
+	<CompanyURL>".$ups_info['CompanyURL']."</CompanyURL>
+	$ShipperNumber
+	<DeveloperLicenseNumber>DB8CE1D16C395DD4</DeveloperLicenseNumber>
+	<AccessLicenseProfile>
+		<CountryCode>US</CountryCode>
+		<LanguageCode>EN</LanguageCode>
+		<AccessLicenseText>".$SESSION['ups_ala_text']."
+		</AccessLicenseText>
+	</AccessLicenseProfile>
+	<OnLineTool>
+		<ToolID>TrackXML</ToolID>
+		<ToolVersion>1.0</ToolVersion>
+	</OnLineTool>
+	<OnLineTool>
+		<ToolID>RateXML</ToolID>
+		<ToolVersion>1.0</ToolVersion>
+	</OnLineTool>
+	<ClientSoftwareProfile>
+		<SoftwareInstaller>yes</SoftwareInstaller>
+		<SoftwareProductName>Squirrelcart</SoftwareProductName>
+		<SoftwareProvider>Lighthouse Development</SoftwareProvider>
+		<SoftwareVersionNumber>".$SESSION['client_version']."</SoftwareVersionNumber>
+	</ClientSoftwareProfile>
+</AccessLicenseRequest>";
+$result = xml_post_sc($license_url,$al_req);
+//print $result;
+$result = xml_parse_sc($result);
+return $result;
+}
+
+function post_ups_reg_request($ups_info) {
+global $SESSION,$registration_url;
+// purpose of function is to send registration request to UPS and return result
+	// first, generate a unique username and password
+	$ups_info['UserId'] = str_replace(" ","",$ups_info['CountryCode'].$ups_info['PhoneNumber']."SC");
+	$ups_info['Password'] = str_replace(" ","",strrev($ups_info['PhoneNumber']));
+	// UserId must be no more than 16 chars
+	$ups_info['UserId'] = substr($ups_info['UserId'], 0, 16);
+	// Password must be no more than 10 chars
+	$ups_info['Password'] = substr($ups_info['Password'], 0, 10);
+	$ups_info['UserId'] = str_replace("(","",$ups_info['UserId']);
+	$ups_info['UserId'] = str_replace(")","",$ups_info['UserId']);
+	$ups_info['Password'] = str_replace("(","",$ups_info['Password']);
+	$ups_info['Password'] = str_replace(")","",$ups_info['Password']);
+	if ($ups_info['AddressLine2']) $AddressLine2 = "<AddressLine2>".$ups_info['AddressLine2']."</AddressLine2>";
+	if ($ups_info['ShipperNumber']) $ShipperNumber = "<ShipperNumber>".$ups_info['ShipperNumber']."</ShipperNumber>";
+	$reg_req = "<?xml version=\"1.0\"?>
+	<RegistrationRequest>
+		<Request>
+			<TransactionReference>
+				<CustomerContext>user registration</CustomerContext>
+				<XpciVersion>1.0001</XpciVersion>
+			</TransactionReference>
+			<RequestAction>Register</RequestAction>
+			<RequestOption>suggest</RequestOption>
+		</Request>
+		<UserId>".$ups_info['UserId']."</UserId>
+		<Password>".$ups_info['Password']."</Password>
+		<RegistrationInformation>
+			<UserName>".$ups_info['Name']."</UserName>
+			<CompanyName>".$ups_info['CompanyName']."</CompanyName>
+			<Title>".$ups_info['Title']."</Title>
+			<Address>
+				<AddressLine1>".$ups_info['AddressLine1']."</AddressLine1>
+				$AddressLine2
+				<City>".$ups_info['City']."</City>
+				<StateProvinceCode>".$ups_info['StateProvinceCode']."</StateProvinceCode>
+				<PostalCode>".$ups_info['PostalCode']."</PostalCode>
+				<CountryCode>".$ups_info['CountryCode']."</CountryCode>
+			</Address>
+			<PhoneNumber>".$ups_info['PhoneNumber']."</PhoneNumber>
+			<EMailAddress>".$ups_info['EMailAddress']."</EMailAddress>
+			$ShipperNumber
+			<PickupPostalCode>".$ups_info['PostalCode']."</PickupPostalCode>
+			<PickupCountryCode>".$ups_info['CountryCode']."</PickupCountryCode>
+		</RegistrationInformation>
+		<ClientSoftwareProfile>
+			<SoftwareInstaller>".$ups_info['SalesRepContact']."</SoftwareInstaller>
+			<SoftwareProductName>Squirrelcart</SoftwareProductName>
+			<SoftwareProvider>Lighthouse Development</SoftwareProvider>
+			<SoftwareVersionNumber>".$SESSION['client_version']."</SoftwareVersionNumber>
+		</ClientSoftwareProfile>
+	</RegistrationRequest>";
+	// send reg request to UPS and get result
+	$result = xml_post_sc($registration_url,$reg_req);
+	$result = xml_parse_sc($result);
+	$index = $result['index'];
+	$vals = $result['vals'];
+	if ($index['ERROR']){
+		$error_desc_i = $index['ERRORDESCRIPTION'][0];
+		$error_desc = $vals[$error_desc_i]['value'];
+		$error_code_i =  $index['ERRORCODE'][0];
+		$error_code = $vals[$error_code_i]['value'];
+		$error_severity_i = $index['ERRORSEVERITY'][0];
+		$error_severity = $vals[$error_severity_i]['value'];
+		$reg_req_html = nl2br(htmlspecialchars($reg_req));
+		$reg_req_html = str_replace("\t","     ",$reg_req_html);
+		$GLOBALS['UPS_Error_Message'] =   "<br><div><b>We have encountered an error!</b><br><br><b>Error Code:</b> $error_code<br><b>Error Severity:</b> $error_severity<br><b>Error Description:</b> $error_desc</div><br><br>";
+		if ($error_code == 250038)  $missing['ShipperNumber'] = $SESSION['missing_ind'];
+		show_ups_al_form();
+	} else {
+		// if here, then registration was succesfull...need to encrypt UserId and Password in DB, and show successful message
+		//check if diff. UserId was suggested than what we sent to them
+		$UserId_suggest_i = $index['USERID'][0];
+		$UserId_suggest = $vals[$UserId_suggest_i]['value'];
+		if ($UserId_suggest) $ups_info['UserId'] = $UserId_suggest;
+		// now, encrypt and store UserId and Password in the SC database
+		$user_id_enc = mysql_escape_string(enc($ups_info['UserId']));
+		$password_enc = mysql_escape_string(enc($ups_info['Password']));
+		// store enc UserId and Password in DB
+		set_field_val("Shipping_Couriers","UPS_UserId",$user_id_enc,"record_number = 2");
+		set_field_val("Shipping_Couriers","UPS_Password",$password_enc,"record_number = 2");
+		set_field_val("Shipping_Couriers","UPS_Agreed",1,"record_number = 2");
+		set_field_val("Shipping_Couriers","UPS_Real_Time_Rates",1,"record_number = 2");
+		return "ok";
+	}
+}
+function ups_reg_cancel(){
+	// purpose of function is to cancel the UPS registration process, and wipe out DB fields that may have been populated
+	global $SESSION,$HTTP_POST_VARS,$UPS_Logo;
+	// wipe out variabels in Shipping_Couriers record for UPS: Access_Key,UserId,Password, etc...
+	set_field_val("Shipping_Couriers","UPS_Agreed","","record_number = 2");
+	set_field_val("Shipping_Couriers","UPS_Access_Key","","record_number = 2");
+	set_field_val("Shipping_Couriers","UPS_UserId","","record_number = 2");
+	set_field_val("Shipping_Couriers","UPS_Password","","record_number = 2");
+	set_field_val("Shipping_Couriers","UPS_Real_Time_Rates",0,"record_number = 2");
+	include "includes/ups_ala_canceled.php";
+	unset ($SESSION['ups_info']);
+}
+
+function ups_access_req_xml(){
+// purpose of this function is to return XML text that contains the proper code for an UPS access request. this
+// is sent at the top of each request sent to UPS OnLine Tools except when registering
+$license_number = dec(get_field_val("Shipping_Couriers","UPS_Access_Key","record_number = '2'"));
+
+$user_id = dec(get_field_val("Shipping_Couriers","UPS_UserId","record_number = '2'"));
+$password = dec(get_field_val("Shipping_Couriers","UPS_Password","record_number = '2'"));
+
+// password can't have NULL chars
+$user_id = rtrim($user_id, "\0");
+$password = rtrim($password, "\0");
+
+$access_req = "<?xml version=\"1.0\"?>
+<AccessRequest xml:lang=\"en-US\">
+	<AccessLicenseNumber>$license_number</AccessLicenseNumber>
+	<UserId>$user_id</UserId>
+	<Password>$password</Password>
+</AccessRequest>";
+return $access_req;
+}
+
+function post_ups_track_form($ups_info){
+// purpose is to handle post from track form, and to validate the info
+// check for presence of tracking number
+global $SESSION;
+	if (!$ups_info['TrackingNumber']) $errors = "<div class=\"action_msg\">You must enter a tracking number!</div>";
+	if (!$ups_info['Disclaimer']) $errors .= "<div class=\"action_msg\">You have not agreed to the terms and conditions!</div>";
+	if ($errors) {
+		$GLOBALS['Cart_Error_Message'] = $errors;
+		return "missing";
+	} else {
+		// strip spaces from tracking number
+		$ups_info['TrackingNumber'] = str_replace(" ","",$ups_info['TrackingNumber']);
+		return $ups_info;
+	}
+}
+
+function post_ups_track_request($ups_info){
+// purpose of function is to send an XML tracking request to UPS, obtain the result, and return it as an array
+global $tracking_url,$access_request;
+// left off here
+$track_req_xml = "$access_request
+<?xml version=\"1.0\"?>
+<TrackRequest xml:lang=\"en-US\">
+	<Request>
+		<TransactionReference>
+			<CustomerContext>Tracking via Squirrelcart</CustomerContext>
+			<XpciVersion>1.0001</XpciVersion>
+		</TransactionReference>
+		<RequestAction>Track</RequestAction>
+		<RequestOption>activity</RequestOption>
+	</Request>
+	<TrackingNumber>".$ups_info['TrackingNumber']."</TrackingNumber>
+</TrackRequest>";
+
+//print $track_req_xml;
+	$result = xml_post_sc($tracking_url,$track_req_xml);
+//print $result;
+	if ($result) {
+		$result = xml_parse_sc($result);
+	} else {
+		$result = "error";
+	}
+	return $result;
+}
+
+function get_ups_rate($service_rn,$zip_orig,$zip_dest,$ship_to_country_code,$weight,$size,$pkg_id=0,$container="None",$test=0,$ship_from_country_code="US",$address_type=0) {
+	global $SESSION;
+	/*
+		function below will connect to UPS using CURL and return an array like the following:
+		$array[] = each service requested will be stored as a sep. array
+		$array[]['service'] = name of service rate applies to
+		$array[]['postage'] = value of postage
+		$array[]['error'] = error returned, if any.
+		
+		amount in US dollars for shipping rates for a single package,
+		based on the parameters passed to it. Function requires the EXPAT add on for PHP in order to handle XML output returned from UPS
+		see "Domestic Rates Calculator API" PDF file at http://uspswebtools.com for detailed information
+		
+		Parameters:
+		$service_rn - record number of the service in the Shipping-Methods table
+		$zip_orig - zip code where package is coming from
+		$zip_dest - zip code package is shipping to
+		$ship_to_country_code - 2 letter abbrev. of country shipping to
+		$weight - weight in lbs of package. can include decimal amounts, like 10.5, or 10.78. function will calculate pounds and ounces from this.
+		$size - string - can be "Regular, Large, or Oversize". see "Domestic Rates Calculator API" PDF file for more info
+		$pkg_id - number identifying package. defaults to 0.
+		$container - see PDF.
+		$test - if set to 1, will output the result that was obtained from ssl_connect
+		$ship_from_country_code - should be set to the 2 letter ISO code for the country that the package is shipping from
+		$address_type - should be set to 1 for residential dest. address, 2 for commercial
+	*/
+	$rates_url = "https://www.ups.com/ups.app/xml/Rate";
+	// get regular access request and store in variable
+	$access_req_xml = ups_access_req_xml();
+	$license_number = dec(get_field_val("Shipping_Couriers","UPS_Access_Key","record_number = '2'"));
+	$pickup_type = get_field_val("Shipping_Couriers","Pickup_Type","record_number = '2'");
+	if (!$pickup_type) $pickup_type = 03;
+	if (strlen($pickup_type) == 1) $pickup_type = "0$pickup_type";
+		$service_code = get_field_val("Shipping_Methods","UPS_Service_Code","record_number = '$service_rn'");
+	// service code must be 2 digits, and if 1 digit, then must have a leading zero
+	if (strlen($service_code) == 1) $service_code = "0$service_code";
+	// get address type, if specified by customer (residential or commercial)
+	if ($address_type == 0) $address_type = $SC['order']['Ship_Addr']['Address_Is'];
+	if ($address_type == 2) $address_type = 0;
+	if (!isset($address_type)) {
+		// address type not set....go get defaults from Address Form Settings table
+		$address_type = get_field_val("Address_Form_Settings","Default_for_Address_Is");
+	}
+	if($address_type == 1) $residential_ind = "<residentialaddressindicator>1</residentialaddressindicator>";
+
+	$rate_req_xml = "$access_req_xml
+<?xml version=\"1.0\"?>
+	<RatingServiceSelectionRequest xml:lang=\"en-US\">
+		<Request>
+			<TransactionReference>
+				<CustomerContext>Bare Bones Rate Request</CustomerContext>
+				<XpciVersion>1.0001</XpciVersion>
+			</TransactionReference>
+			<RequestAction>Rate</RequestAction>
+			<RequestOption>Rate</RequestOption>
+		</Request>
+		<PickupType>
+			<Code>$pickup_type</Code>
+		</PickupType>
+		<Shipment>
+			<Shipper>
+				<Address>
+					<PostalCode>$zip_orig</PostalCode>
+					<CountryCode>$ship_from_country_code</CountryCode>
+				</Address>
+			</Shipper>
+			<ShipTo>
+				<Address>
+					<PostalCode>$zip_dest</PostalCode>
+					<CountryCode>$ship_to_country_code</CountryCode>
+					$residential_ind
+				</Address>
+			</ShipTo>
+			<ShipFrom>
+				<Address>
+					<PostalCode>$zip_orig</PostalCode>
+					<CountryCode>$ship_from_country_code</CountryCode>
+				</Address>
+			</ShipFrom>
+			<Service>
+				<Code>$service_code</Code>
+			</Service>
+			<Package>
+				<PackagingType>
+					<Code>02</Code>
+				</PackagingType>
+				<PackageWeight>
+					<UnitOfMeasurement>
+						<Code>LBS</Code>
+					</UnitOfMeasurement>
+					<Weight>$weight</Weight>
+				</PackageWeight>
+			</Package>
+		</Shipment>
+</RatingServiceSelectionRequest>";
+
+$rate_result = xml_post_sc($rates_url,$rate_req_xml);
+
+//print $rate_req_xml."<-------------------<br>";
+//print $rate_result."<-------------------<br>";
+
+// if result returned, parse it
+if ($rate_result) {
+	$rate_result = xml_parse_sc($rate_result);
+} else {
+	$rate_result = "error";
+}
+
+	// get values returned, and their index positions in the array
+	$index = $rate__result['index'];
+	$vals = $rate_result['vals'];
+	$tree=get_xml_tree($vals);
+	// store info into variables for easier use - uper case because they will be in templates
+	$status = $tree['RATINGSERVICESELECTIONRESPONSE'][0]['RESPONSE'][0]['RESPONSESTATUSCODE'][0]['VALUE'];
+	$rated_shipment = $tree['RATINGSERVICESELECTIONRESPONSE'][0]['RATEDSHIPMENT'][0];
+	$error = $tree['RATINGSERVICESELECTIONRESPONSE'][0]['RESPONSE'][0]['ERROR'][0];
+	if ($status != 1 || $rate_result == "error") { // if status returned is not success
+		if($error) {
+			$rate['error']['number'] = $error['ERRORCODE'][0]['VALUE'];
+			$rate['error']['description'] = $error['ERRORDESCRIPTION'][0]['VALUE'];
+		} else {
+			$rate['error']['number'] = "";
+			$rate['error']['description'] = "Unknown error";
+		}
+	} else {
+		$rate['postage'] = $rated_shipment['TOTALCHARGES']['0']['MONETARYVALUE']['0']['VALUE'];
+		$rate['service'] = get_field_val("Shipping_Methods","Method","record_number = '$service_rn'");
+		$rate['days_to_delivery'] = $rated_shipment['GUARANTEEDDAYSTODELIVERY'][0]['VALUE'];
+		$rate['delivery_time'] = $rated_shipment['SCHEDULEDDELIVERYTIME'][0]['VALUE'];
+	}
+return $rate;
+}
+
+
+function post_ups_rates_form($ups_info){
+// purpose is to handle post from rates form in back end, and to validate the info
+global $SESSION;
+	if (!$ups_info['weight']) {
+		$Cart_Error_Message .= "<div class=\"action_msg\">You must enter the weight of the package!</div>";
+	} else {
+		if (!is_numeric($ups_info['weight'])) $Cart_Error_Message .= "<div class=\"action_msg\">Weight must be numeric!</div>";
+	}
+	if (!$ups_info['orig_zip']) $Cart_Error_Message .= "<div class=\"action_msg\">You must enter the originating postal code!</div>";
+	if (!$ups_info['dest_zip']) $Cart_Error_Message .= "<div class=\"action_msg\">You must enter the destination postal code!</div>";
+	if ($Cart_Error_Message) {
+		$GLOBALS['Cart_Error_Message'] = $Cart_Error_Message;
+		return "missing";
+	} else {
+		// strip spaces from tracking number
+		return $ups_info;
+	}
+}
+?>

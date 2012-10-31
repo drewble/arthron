@@ -1,0 +1,18 @@
+# STSTAT-MULTI.CNF ==== Configuration file for STstat v3.3
+# -----------------------------------------------------------------------------
+#
+# Constant SERVER holds the name of each virtual host. This 
+# name is up to you. After that, enter - separated by commas -    
+# the full path and name of the main configuration file
+# and the full path and name of the file that contains ignore-data
+#
+SERVER=Hostname1,ststat-other.cnf,ststat-ign-other.cnf
+#
+# Second host (optional)
+#
+#SERVER=Hostname2,/var/httpd/myconf/ststat4secondhost.cnf,/mydir/ststat4secondhost-ign.cnf
+#
+# You may add as many sets of hosts+conf-files as you like.
+# NOTE: Each line that starts with #, is not read by STstat.
+#
+# End of file.

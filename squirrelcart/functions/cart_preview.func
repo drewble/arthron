@@ -1,0 +1,17 @@
+<?
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+
+function cart_preview(){
+global
+$SC;
+	// set variables for use in template
+	$Checkout_Image = get_image("Images","Checkout");
+	$Checkout_HREF = $SC['www_cart_page']."?show_cart=yes$SC[SID]";
+	if ($SC['order']['number_of_items'] == 0) $Cart_Message = "Your cart is empty.";
+	if ($SC['order']['number_of_items'] == 1) $Cart_Message = "You have 1 item in your cart, ";
+	if ($SC['order']['number_of_items'] > 1) $Cart_Message = "You have ".$SC['order']['number_of_items']." items in your cart, ";
+	if($SC['order']['number_of_items'] != 0) $Cart_Message .= "totaling ".$SC['currency'].$SC['order']['product_total']."<br>";
+	// include template to display content
+	include $SC['templates']['cart_options'];
+}
+?>

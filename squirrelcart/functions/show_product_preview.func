@@ -1,0 +1,60 @@
+<?
+// purpose of function is to show a preview of other items in a category, when a customer is viewing detail on one item
+function show_product_preview($crn=0){
+	global
+	$SC,$crn,$rn;
+$cat_rn = $crn;
+// limit section
+// below determines the row number of the product that is being viewed, based on standard query
+	$query = "
+	SELECT prod.record_number
+	FROM Categories cat, Products prod, REL_Products__Categories pc
+	WHERE cat.record_number = pc.Table_2 AND prod.record_number = pc.Table_1
+	AND cat.record_number = $cat_rn
+	AND prod.Not_For_Sale != 1
+	$exclude
+	ORDER BY prod.Name ASC;";
+	$result = mysql_query ($query);
+	$match_rn = 0;
+	while ($row = mysql_fetch_array ($result)) {
+		$current_rn = $row[record_number];
+		if($rn == $current_rn) $current_row = $match_rn;
+		$match_rn++;
+		$row[Category] = $crn;
+		$products[] = $row;
+	}
+
+// limit section ------------------------------------------------------------------------------------------//
+	$limit_qty = get_field_vaL("Store_Information","Previews_per_Page"); // number of items to show in preview
+	$prod_count = count_products($cat_rn);
+	if ($limit_qty < $prod_count) {
+		$last_row = $match_rn-1; // last row!!
+		$items_left = $last_row - $current_row; //number of items left to display in prod preview
+		$limit = "LIMIT $current_row, $limit_qty";
+	// ------------------overflow section ------------------------------------------------------------------//
+	// if the items left AFTER current one are not equal  to the number of items per page
+	// then start back at top
+		if ($items_left < $limit_qty) {
+			$row_diff = $limit_qty - $items_left;
+			if ($row_diff >= $current_row) $row_diff = $current_row - 1;
+			$limit2 = "LIMIT 0, $row_diff";
+			$products = get_products_from_category($cat_rn,$rn,$limit2);
+			for ($x=0;$products[$x];$x++){
+				$product = $products[$x];
+				$template = $SC[templates][show_product_image_bar];
+				show_product($product[record_number],$template);
+			}
+		}
+	// ----------- end of overflow section ------//
+}
+// end of limit section ---------------------------------------------------------------------------------------//
+
+
+	$products = get_products_from_category($cat_rn,$rn,$limit);
+	for ($x=0;$products[$x];$x++){
+		$product = $products[$x];
+		$template = $SC[templates][show_product_image_bar];
+		show_product($product[record_number],$template);
+	}
+}
+?>

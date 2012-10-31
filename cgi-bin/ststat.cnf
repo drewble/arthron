@@ -1,0 +1,95 @@
+#==== STSTAT.CNF ====   Configuration file for STstat v4.0
+#                                                          S.Trivizas 1997
+#
+#   !!!!!!!!!!!!!!!!!!!!!!!!! - Must - !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#   !!                                                                 !!
+#   !! please change LOGPATH, AGENTPATH, REFPATH and LOGTYPE constants !!
+#   !! to the full path of "access_log", "agent_log" and "referer_log" !!
+#   !! files respectively... (if they exist!)                          !!
+#   !!                                                                 !!
+#   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#   
+#  LOGTYPE may be either "CLF" (Common Log Format) or "ELF" (Extended Log
+#  Format).
+#  CLF means that you have at least an access_log and - maybe - a referer_log
+#  and an agent_log. If you only have access_log, leave REFPATH and AGENTPATH
+#  blank (i.e. " ").
+#  With ELF, all information are supposed to be in one file, so set all three
+#  constants (LOGPATH,AGENTPATH & REFPATH) to the same full path.
+#
+#  For more information on CLF and ELF, check STstat's web pages, or Apache's
+#  site (www.apache.org), or your web-server's documentation.
+#
+LOGPATH     "/scsi2/httpd/virtual/sportsinjuries.com/logs/access_log"
+AGENTPATH   "/scsi2/httpd/virtual/sportsinjuries.com/logs/agent_log"  
+REFPATH     "/scsi2/httpd/virtual/sportsinjuries.com/logs/referer_log"
+LOGTYPE     "CLF"
+#
+#  SCRIPTHOME constant defaults to "/cgi-bin", but if you install STstat in
+#  a CGI enabled directory that is not named cgi-bin, you should update this
+#  constant.
+#  Notice that you must provide the VIRTUAL path, not the actual path, without
+#  a trailing slash (/).
+#
+SCRIPTHOME "/cgi-bin"
+#
+#  If you set NUMER2NAME constant to "1", then a dns lookup will occur when you
+#  request specific information for a remote host that has not been logged by
+#  its domain name, but by its IP address. In that case, you must also provide
+#  the path to "nslookup" or "host" utility on your system, in the constant
+#  NSLOOKUP.
+#
+NUMER2NAME "0"
+NSLOOKUP "/usr/bin/nslookup"
+#
+#
+#  Changing this constant affects the URLs displayed in the resulting page. For
+#  example, if you set URL2SHOW "10", then only the URLs that have been accessed
+#  10 or more times will be displayed.
+#
+URL2SHOW "1" 
+#
+#   HOST2SHOW does the same as URL2SHOW, but for the visitors' hostnames. 
+#
+HOST2SHOW "1"
+#
+#   !!!!!!!!!!!!!!!!!!!!!!!!! - Should - !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#   !!                                                                  !!
+#   !! Plese change SERVERNAME to whatever you call your web server. It !!
+#   !! will be displayed on the resulting pages.                        !!
+#   !!                                                                  !!
+#   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#
+SERVERNAME "www.sportsinjuries.com"
+#
+#  You should also inform STstat whether your httpd puts a format string as
+#  the first line of each log file. If it does, (Netscape server does), set
+#  IGNOREFIRST to "1".
+#
+IGNOREFIRST "0"
+#
+#  This constant defines the colours and look of the resulting HTML page.
+#  The BODYTAG constant is included in every HTML page that is produced by
+#  STstat. You may put anything inside this tag, as long as it is legal HTML.
+#
+BODYTAG "<BODY BGCOLOR=#ffffff TEXT=#000000 LINK=#110099 VLINK=#FF6633>"
+#
+#
+#  When ZOOMBUTTON is set to 1, a button is displayed at some reports of
+#  STstat, which -if pressed- runs automatically a script that provides extra
+#  details for the corresponding item.
+#  It is very handy, but if your logs are long set it to 0, because you will
+#  get HTML code of many many Kilobytes. Anyway, try it and see for youself...
+#
+ZOOMBUTTON "1" 
+#
+#  !!!!!!!!!!!!!!!!!!!!!!!!!!!! - Must - !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#
+#  WEBDIR constant contains the VIRTUAL path that you have copied the .gif
+#  files, which were provided by STstat's distribution, into.
+#  It can be any path inside your server's web tree.
+#  Please provide the trailing slash (/), too.
+#
+WEBDIR "/cgi-bin/"
+#
+# End of file -----------------------------------------------------------------

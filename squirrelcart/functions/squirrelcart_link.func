@@ -1,0 +1,18 @@
+<?
+// this file added on 8/28/2003 for v1.2.0
+// file modified on 10/24/2003 for v1.3.0 to remove copyright from text link
+
+// purpose of function is to display a link back to Squirrelcart.com, based on what the merchant has selected in the Squirrelcart_Logo field in their store settings
+function squirrelcart_link(){
+	global $SC;
+	$logo = get_field_val("Store_Information","Squirrelcart_Logo");
+	if (!$logo) $logo = 4;
+	if ($logo == 4) {
+		$sc_logo = "<div style=\"font-size: 10px; font-family: Verdana, Hevetica\">Powered by <a target=\"new\" href=\"http://www.squirrelcart.com\">Squirrelcart © Shopping Cart Software</a></div>";
+								
+	} else {
+		$sc_logo = "<a target=\"new\" href=\"http://www.squirrelcart.com\">".get_image("Cart_Images","powered by sc $logo",0,0,0,"Powered by Squirrelcart Shopping Cart Software")."</a><br><br>";
+	}
+	print $sc_logo;
+}
+?>

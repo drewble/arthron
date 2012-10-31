@@ -1,0 +1,10 @@
+<?
+// purpose of function is to get all values, of 1 field sorted into an array
+function get_field_values($table,$where,$sortby,$order,$field_name){
+	$records=get_records($table,0,$where,$sortby,$order);
+	for($x=0;$records[$x];$x++){
+		$array[$x]=$records[$x][$field_name];	
+	}
+	return $array;
+}
+?>

@@ -1,0 +1,9 @@
+<?
+//purpose of function is to set a single field value from a single record based on a where statement
+
+function set_field_val($table,$field_name,$value,$where,$test=0){
+	$fields[] = $field_name;
+	$values[$field_name] = $value;
+	modify_record($table,$where,$fields,$values,$test);
+}
+?>

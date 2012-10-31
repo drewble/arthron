@@ -1,0 +1,49 @@
+<?
+// purpose of function is to display a select input of any values you pass to it
+// $full_form should be 0 or 1. determines whether or not to surround select with form tags. 1 will incude form tags. 0 will not.
+// $form_action should 0 if $full_form is "select_only". If $full_form is "full", then $form_action should be the URL to submit the form to
+// $form_method should 0 if $full_form is "select_only". If $full_form is "full", then $form_method should be "POST" or "GET"
+// $submit_on_change can be 0 or 1. 1 tells form to submit when select box is changed. 0 tells it not to do this.
+// $no_show is 0 by default. If you set it to something, whatever this is set to will be excluded from the select.
+// $format_display tells function to format text that displays in the select box.
+//		valid values are 0,"nu","u". 0 does nothing. "nu" refers to no underscore, and replaces underscores with spaces. "u" does the opposite.
+// $label is the text you want to appear before the select input
+// $options is an array containing values to use as select options
+// $name is the name you want to give the input, ie <input name="$name">
+function selectbox($full_form, $form_action, $form_method, $submit_on_change, $no_show, $format_display, $label, $options,$name,$field_value=0)
+{
+global
+$$name;
+
+if ($field_value) $$name = $field_value; // this is a fix because for some reason the global $$name was failing sometimes, so I am now passing the current value of the field via the last parameter in the function
+
+	if ($submit_on_change) $onchange = "onchange=\"this.form.submit()\"";
+	if ($full_form) print "<form action=\"$form_action\" method=\"$form_method\">\r";
+	print "$label\r
+	<select name=\"$name\" $onchange>\r
+	<option></option>\r";
+	unset($selected);
+
+	// fix mySQL reserved fields
+	$options_fixed=fix_reserved_mysql_values($options);
+	for ($x=0; $options[$x];$x++){
+		unset($selected);
+		unset($dont_show);
+		if ($no_show) {
+			if ($options[$x] == $no_show) $dont_show=1;
+			if (is_array($no_show) && in_array($options[$x], $no_show)) $dont_show = 1;
+			};
+		if (!$dont_show){
+				if ($$name == $options[$x]) {
+					$selected="SELECTED";
+					}
+				if ($format_display == "nu") $display_value = str_replace("_"," ",$options_fixed[$x]);
+				if ($format_display == "u") $display_value = str_replace(" ","_",$options_fixed[$x]);
+				if (!$format_display) $display_value = $options_fixed[$x];
+				print "<option value=\"".$options[$x]."\" $selected>$display_value</option>\r";
+			}
+	}
+	print "</select>\r";
+	if ($full_form) print "</form>\r";
+}
+?>

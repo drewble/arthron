@@ -1,0 +1,58 @@
+<?
+// file created on 5/26/2003 for v1.1.0 - Order Status feature
+// file modified on 11/22/03 for v1.3.0 - to add default "order placed" status when there is no status set for order
+//
+// purpose of function is to display all orders, when customer clicks on "Order Status" in account options (after logging in)
+//
+function show_orders($user_rn=0) {
+global $SC;
+	// variables for template use
+	$Order_Status_Image = get_image("Images","Order_Status");
+	// include header template
+	include $SC['templates']['order_status_header'];
+	if (!$user_rn) $user_rn = $SC['user']['record_number'];
+
+	$orders = get_records("Orders","*","Ordered_By = '$user_rn'","Order_Date","DESC");
+	// if there is at least one order placed by this customer
+	if ($orders) {
+		// loop through orders
+		for ($x=0;$orders[$x];$x++){
+			$order = $orders[$x];
+			$field_names = get_fields($SC['db'],"Orders");
+			// loop through field names in table, and set each one as a variable for use in the template file
+			for ($i=0;$field_names[$i];$i++){
+				$field_name = $field_names[$i];
+				$$field_name = $order[$field_name];
+			}
+			// handle alternating rows, for highliting
+			if ($TD_Class == "stat_td") {
+				$TD_Class = "stat_td_alternate";
+			} else {
+				$TD_Class = "stat_td";
+			}
+			// link for showing Order Detail
+			$Order_Detail_HREF = "?order_detail=$record_number";
+			// format data retrieved from Orders table for humans :O)
+			$Grand_Total = $SC['currency'].$Grand_Total;
+			$Order_Date = strtotime($Order_Date);
+			$Order_Month = date("m",$Order_Date);
+			$Order_Day = date("d",$Order_Date);
+			$Order_Year = date("Y",$Order_Date);
+			$Order_Time = date("h:i A",$Order_Date);
+			$status_rn = get_records("REL_Order__Status","Table_2","Table_1 = '$record_number'","Record_Date","DESC");
+			$status_rn = $status_rn[0]['Table_2'];
+			$Order_Status = get_field_val("Order_Status","Status","record_number = '$status_rn'");
+			$status_desc = get_field_val("Order_Status","Description","record_number = '$status_rn'");
+			if ($Order_Status && $status_desc) {
+				$Order_Status = Popup_Window($SC['cart_www_root']."/order_status_popup.php?status=$status_rn", $Order_Status, "200", "100", "yes", "yes");
+			}
+
+			if (!$Order_Status) $Order_Status = "Order Placed";
+			// include template to display a single order
+			include $SC['templates']['order_status_order'];
+		}
+	}
+	// include footer template
+	include $SC['templates']['order_status_footer'];
+}
+?>

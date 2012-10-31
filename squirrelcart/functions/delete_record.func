@@ -1,0 +1,115 @@
+<?
+function delete_record($table, $rn) {
+global
+$SC,$db;
+	// check to see if record is set as "Delete_Inhibit" and if it is, don't delete it!!!
+	$delete_inhibit = get_field_val("Table_Definition","Delete_Inhibit_Records","Table_Name = '$table'");
+	if (!$delete_inhibit) $delete_inhibit = get_field_val("Record_Definition","Delete_Inhibit","Record = '$rn' AND Table_Name = '$table'");
+	
+	if ($delete_inhibit) {
+		$result['Message'] = "You are not allowed to delete record number $rn from table $table!<br>";
+		$result['Error'] = "failed";
+		return $result;
+	} else {
+		$fields=get_fields($db, $table);
+		$uploads=get_field_formats("Field_Definition",$table,"Display_As = 'Image Upload'");
+		$records=get_records($table,0,"record_number = '$rn'",$sortby,$order);
+		$record=$records[0];
+		
+		// below is routine to delete any associated image files
+		if(get_field_val("Store_Information","Delete_Unused_Images")){
+			for($x=0;$fields[$x];$x++){
+				$field_name=$fields[$x];
+				unset($is_upload);
+				$is_upload = $uploads[$field_name];
+				if ($is_upload) {
+					$path = $record[$field_name];
+					$deleted_img = delete_image($path,$table,$rn);
+					if($deleted_img == "failed") 	$del_message = $del_message."<br>Failed to delete associated image: $path\r";
+					if($deleted_img == "deleted") 	$del_message = $del_message."<br>Deleted associated image: $path\r";
+				}
+			}
+		}
+		
+		// below is section to delete Products_Sold entries when deleting a product
+		if ($table == "Products") {
+			// get record associated with this product in the Products_Sold table
+			$ps_rn = get_field_val("Products_Sold","record_number","Product_rn = $rn");
+			if ($ps_rn)	print "<i>Deleting related record</i> - ";
+			$msg = delete_record("Products_Sold",$ps_rn);
+			print "$msg[Message]<br>";
+			unset ($msg);
+//die;
+		}
+		
+		// below is routine to delete any associated relationship records, and to fix the position of existing ones
+			// find out if there are any relationships defined for this table, and set as an array
+				$relationship_defs = get_records("Relationship","*","Table_1 = '$table' OR Table_2 = '$table'",0,0);
+			// loop through each relationship definition record
+				for($x=0;$relationship_defs[$x];$x++){
+					$relationship_def = $relationship_defs[$x]; // one relationship definition record ("Relationship" table)
+					$relationship_tb = $relationship_def[Relationship_Table];
+					if($table == $relationship_def[Table_1]) {
+						// below, $rel_records is an array of records in the relationship_table corresponding to the table of the record being deleted
+						$rel_records = get_records($relationship_tb,"*","Table_1 = '$rn'",0,0);
+						if ($rel_records) print "Record being deleted is related to records in '$relationship_def[Table_2]' table.<br>";
+						for($a=0;$rel_records[$a];$a++){
+							// one relationship record
+								$rel_record = $rel_records[$a];
+								$rel_record_tb2 = $rel_record[Table_2];
+							// records that need to have position fixed
+								$fix_records = get_records($relationship_tb,"record_number,Position","Table_2 = '$rel_record_tb2' AND Position > $rel_record[Position]","Position","ASC");
+								for ($b=0;$fix_records[$b];$b++){
+									$fix_record = $fix_records[$b];
+									unset ($fields); unset($values);
+									$where = "record_number = '$fix_record[record_number]'";
+									$fields[] = "Position";
+									$values[Position] = $fix_record[Position] - 1;
+									print "Fixing position of remaining records related to '$relationship_def[Table_2]' table<br>";
+									modify_record($relationship_tb,$where,$fields,$values);
+								}
+								print "<i>Deleting related record</i> - ";
+								$msg = delete_record($relationship_tb,$rel_record[record_number]);
+								print "$msg[Message]<br>";
+								unset ($msg);
+						}
+					}
+					if($table == $relationship_def[Table_2]) {
+						// because this record is a 'container' for other records, and is ref. by Table_2 in the relationship_table, all records
+						// in relationship table with this records listed in column 2 must be deleted - below
+						// below, $rel_records is an array of records in the relationship_table corresponding to the table of the record being deleted
+							$rel_records = get_records($relationship_tb,"record_number","Table_2 = '$rn'",0,0);
+							if ($rel_records) print "Record being deleted is related to records in '$relationship_def[Table_1]' table.<br>";
+							for($a=0;$rel_records[$a];$a++){
+								print "<i>Deleting related record</i> - ";
+								$msg = delete_record($relationship_tb,$rel_records[$a][record_number]);
+								print "$msg[Message]<br>";
+								unset ($msg);
+							}
+					}
+					
+				}
+		
+		$query = "DELETE FROM $table WHERE record_number = '$rn'";
+		$record_message = "Record number \"$rn\" deleted from table \"$table\"";
+		mysql_query($query)
+			or print "Failed to delete record";
+		
+		// include any external scripts specified in Account_Deletion_Script field in store settings
+		$SC['deleted_account'] = 1;
+		if($table=="Customers"){
+			$scripts = get_field_array("Store_Information","Account_Deletion_Script","record_number = '1'","\n");
+			for($x=0;isset($scripts[$x]);$x++){
+				$script = $scripts[$x];
+				// remove \r line returns if line contains one
+				$script=str_replace("\r","",$script);
+				$script=str_replace("squirrelcart/","",$script);
+				if ($script) @include $script;
+			}
+		}
+		unset($SC['deleted_account']);
+	}
+	$result['Message'] = $record_message.$del_message;
+	return $result;
+}
+?>

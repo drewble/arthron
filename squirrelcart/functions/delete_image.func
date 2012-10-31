@@ -1,0 +1,61 @@
+<?
+/*
+file added 11/06/02 for v1.1.0 to handle image file deletions
+purpose of function is to delete an image safely, by first checking to see if it is used by any other records
+$img_path is the value of the image field from the record it is associated with
+$table is the name of the table that the current record is in
+$rn is the record number associated with the image being deleted
+
+this function returns:
+"failed" if an attempted was made to delete, but was unsuccessful
+"deleted" if image was deleted
+"shared" if image was not deleted because it was used by another record
+"invalid path" if path passed to function was not valid
+*/
+
+function delete_image($img_path,$table,$rn) {
+global $SC;
+	// set folder_path to the path from server root, to the path above the value of $img_path. if image is for use in the cart, then this path is different than if it is for a product or category
+	if ($table == "Cart_Images" || $table == "Payment_Methods") {
+		$folder_path = $SC['site_isp_root'];
+		} else {
+			$folder_path = $SC['site_isp_root']."/".$SC['image_folder'];
+	}		
+	// set img_path to the full path to the img, from the server's root
+	$full_img_path = "$folder_path/$img_path";
+	if(file_exists($full_img_path)) {
+		// if file exists, then check other records to see if they are sharing the same file
+		$field_defs = get_records("Field_Definition","Table_Name, Field_Name","Display_As = 'Image Upload'");
+		for($i=0;($field_defs[$i] && !$shared_img);$i++){
+			$field_def = $field_defs[$i];
+			// if checking records in same table as the one that the image is being deleted from
+			if($field_def['Table_Name'] == $table) {
+				$shared_img = get_records($field_def['Table_Name'],$field_def['Field_Name'],$field_def['Field_Name']." = '$img_path' AND record_number != $rn");
+			} else {
+				$shared_img = get_records($field_def['Table_Name'],$field_def['Field_Name'],$field_def['Field_Name']." = '$img_path'");
+			}
+		}
+		// if $shared_img is set, then the image is being used by another record, and can't be deleted...
+		if(!$shared_img) {
+			// check permissions, and if possible, delete image
+			if (is_writeable($full_img_path)) {
+				unlink ($full_img_path);
+				} else {
+				// attempt to CHMOD file so we can remove it
+				@chmod($full_img_path, 0777);
+				@unlink ($full_img_path);
+			}
+			// check to see if deletion was successful	
+			if(file_exists($full_img_path)) {
+				return "failed";
+			} else {
+				return "deleted";
+			}
+		} else {
+			return "shared";
+		}
+	} else {
+		return "invalid path";
+	}
+}
+?>

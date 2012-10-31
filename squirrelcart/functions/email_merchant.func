@@ -1,0 +1,167 @@
+<?
+// file modified on 9/24/2003 for v1.2.0...stripped out shipping breakdown code and put it in it's own function - get_shipping_info.func
+function email_merchant(){
+	global
+	$SC,$REMOTE_ADDR,$HTTP_USER_AGENT,$REMOTE_HOST,$check_ip;
+
+	if (!$SC['order']['Bill_Addr']['State_or_Province_Display']) {
+		// -------- Add state abbrev to session for payment gateway use -----------------//
+		$state_abbrev = get_field_val("States","Abbreviation","record_number = \"".$SC['order']['Bill_Addr']['State_or_Province']."\"");
+		$SC['order']['Bill_Addr']['State_Abbrev'] = $state_abbrev;			
+		$state_abbrev = get_field_val("States","Abbreviation","record_number = \"".$SC['order']['Ship_Addr']['State_or_Province']."\"");
+		$SC['order']['Ship_Addr']['State_Abbrev'] = $state_abbrev;			
+		
+		// ---------- add actually country and state name to SESSION for use in payment gateway ---------//
+		$state = get_field_val("States","Name","record_number = \"".$SC['order']['Bill_Addr']['State_or_Province']."\"");
+		$SC['order']['Bill_Addr']['State_or_Province_Display']=$state;
+		$state = get_field_val("States","Name","record_number = \"".$SC['order']['Ship_Addr']['State_or_Province']."\"");
+		$SC['order']['Ship_Addr']['State_or_Province_Display']=$state;
+		$country = get_field_val("Countries","Name","record_number = \"".$SC['order']['Bill_Addr']['Country']."\"");
+		$SC['order']['Bill_Addr']['Country_Display']=$country;
+		$country = get_field_val("Countries","Name","record_number = \"".$SC['order']['Ship_Addr']['Country']."\"");
+		$SC['order']['Ship_Addr']['Country_Display']=$country;
+	}
+
+	$email_merchant_enabled=get_field_val("Store_Information","Email_Order_To_Merchant","record_number = '1'");
+	$email_order_to = get_field_val("Store_Information","Email_Orders_To","record_number = \"1\"");
+	if ($email_merchant_enabled && $email_order_to) {
+		$Company_Name = get_field_val("Store_Information","Company_Name","record_number = \"1\"");
+		$subject = "$Company_Name - Order #".$SC[order][number];
+		$from = $SC['order']['Bill_Addr']['First_Name']." ".$SC['order']['Bill_Addr']['Last_Name'];
+		$reply_to = $SC['order']['Bill_Addr']['Email_Address'];
+		$order = $SC[order];
+		$billing = $order[Bill_Addr];
+		$shipping = $order[Ship_Addr];
+
+		//------------ section to handle shipping and packing breakdown ---------------------------------------------------------
+		$shipping_breakdown = get_shipping_info("verbose");
+		//------------ end of section to handle shipping and packing breakdown ---------------------------------------------------------
+
+		
+		// emailing cc numbers
+		$email_cc = get_field_val("Store_Information","Email_Credit_Card_Number","record_number = '1'");
+		$payment_type = get_field_val("Payment_Methods","Type","Name = '".$order[pay_info][method]."'");
+		if ($email_cc && $payment_type == 1) {
+			$transpose_num = get_field_val("Store_Information","Transpose_Number","record_number = '1'");
+			$new_cc_num = $order[pay_info][card_number] + $transpose_num;
+			$new_cc_num  = number_format($new_cc_num, 0, '', '');
+			$CC_Info = 
+"CC Number: $new_cc_num
+	Exp. Date: ".$order[pay_info][exp_month]."/".$order[pay_info][exp_year];
+		};
+		
+		
+		unset($msg_order);
+
+// get text from item template into a variable
+	$item_file_array = file($SC[templates][email_merchant_item]);
+	for($ix=0;$item_file_array[$ix];$ix++){
+		$item_file = $item_file.$item_file_array[$ix];
+	}
+		for($x=0;$SC[order][$x];$x++){
+			unset($value_brk);
+			$item = $SC[order][$x];
+			unset($option_msg);
+			for($i=0;$item[option][$i];$i++){
+			$option_array = explode("^^",$item['option'][$i]);
+			$option_type = get_field_val("Product_Options","Option_Type","Name = '$option_array[0]'");
+			if($option_type == "Textarea Input") $value_brk = "\r";
+// remove slashes from text option
+$option_array[1] = stripslashes($option_array[1]);
+					$option_msg = "".$option_msg."
+		- Option Name: ".$option_array[0]."
+		- Option Value: $value_brk$option_array[1]";
+if ($option_array[2] !== "----") $option_msg = $option_msg."
+		- Option Price: $option_array[2]";
+if ($option_array[3] !== "----") $option_msg = $option_msg."
+		- Option Weight: $option_array[3]";
+$option_msg = $option_msg."
+";
+			}
+			
+			$option_msg = str_replace(",----","",$option_msg);
+
+// capture template as string for item info prior to looping. saves steps. no need to do for every loop
+	unset($new_item_file);
+	$new_item_file = $item_file;
+
+// loop through all of the keys in the item variable,
+// and replace each variable in template with corresponding value
+$keys = array_keys($item);
+for($ix=0; isset($keys[$ix]); $ix++){
+	$key = $keys[$ix];
+	if(!is_numeric($key)) {
+		if($key != "Options") {
+			$new_item_file = str_replace('<?=$'.$key.'?>',$item[$key],$new_item_file);
+		}
+	}
+}
+// handle special cases not included in $item
+	$new_item_file = str_replace('<?=$Quantity?>',$item['qty'],$new_item_file);
+	$new_item_file = str_replace('<?=$Options?>',$option_msg,$new_item_file);
+	$new_item_file = str_replace('<?=$Item_Total?>',$item['item_total'],$new_item_file);
+
+	if ($msg_order) {
+		$msg_order = 
+	"$msg_order
+	$new_item_file";
+			} else {
+$msg_order = 
+$new_item_file;
+		}	
+}
+
+// read template file into an array, and replace variables
+			$file_array = file($SC['templates']['order_notification_email']);
+			for($x=0;$file_array[$x];$x++){
+				$file = $file.$file_array[$x];
+			}
+			$file = str_replace('<?=$Company_Name?>',$Company_Name,$file);
+			$file = str_replace('<?=$Order_Number?>',$order['number'],$file);
+			$file = str_replace('<?=$Order_Date?>',$order['Order_Date'],$file);
+			$file = str_replace('<?=$Number_of_Items?>',$order['number_of_items'],$file);
+			$file = str_replace('<?=$Product_Total?>',$order['product_total'],$file);
+			$file = str_replace('<?=$Shipping_Total?>',$order['shipping_total'],$file);
+			$file = str_replace('<?=$Tax_Total?>',$order['tax_total'],$file);
+			$file = str_replace('<?=$Grand_Total?>',$order['grand_total'],$file);
+			$file = str_replace('<?=$Item_Breakdown?>',$msg_order,$file);
+			$file = str_replace('<?=$Shipping_Breakdown?>',$shipping_breakdown,$file);
+			$file = str_replace('<?=$Billing_First_Name?>',$billing['First_Name'],$file);
+			$file = str_replace('<?=$Billing_Last_Name?>',$billing['Last_Name'],$file);
+			$file = str_replace('<?=$Billing_Street?>',$billing['Street'],$file);
+			$file = str_replace('<?=$Billing_Street_2?>',$billing['Street_2'],$file);
+			$file = str_replace('<?=$Billing_City?>',$billing['City'],$file);
+			$file = str_replace('<?=$Billing_State_or_Province?>',$billing['State_or_Province_Display'],$file);
+			$file = str_replace('<?=$Billing_Postal_Code?>',$billing['Postal_Code'],$file);
+			$file = str_replace('<?=$Billing_Country?>',$billing['Country_Display'],$file);
+			$file = str_replace('<?=$Billing_Email_Address?>',$billing['Email_Address'],$file);
+			$file = str_replace('<?=$Billing_Phone?>',$billing['Phone'],$file);
+			$file = str_replace('<?=$Product_Total?>',$order['product_total'],$file);
+			$file = str_replace('<?=$Shipping_Total?>',$order['shipping_total'],$file);
+			$file = str_replace('<?=$Tax_Total?>',$order['tax_total'],$file);
+			$file = str_replace('<?=$Grand_Total?>',$order['grand_total'],$file);
+			$file = str_replace('<?=$Item_Breakdown?>',$msg_order,$file);
+			$file = str_replace('<?=$Shipping_First_Name?>',$shipping['First_Name'],$file);
+			$file = str_replace('<?=$Shipping_Last_Name?>',$shipping['Last_Name'],$file);
+			$file = str_replace('<?=$Shipping_Street?>',$shipping['Street'],$file);
+			$file = str_replace('<?=$Shipping_Street_2?>',$shipping['Street_2'],$file);
+			$file = str_replace('<?=$Shipping_City?>',$shipping['City'],$file);
+			$file = str_replace('<?=$Shipping_State_or_Province?>',$shipping['State_or_Province_Display'],$file);
+			$file = str_replace('<?=$Shipping_Postal_Code?>',$shipping['Postal_Code'],$file);
+			$file = str_replace('<?=$Shipping_Country?>',$shipping['Country_Display'],$file);
+			$file = str_replace('<?=$Shipping_Email_Address?>',$shipping['Email_Address'],$file);
+			$file = str_replace('<?=$Shipping_Phone?>',$shipping['Phone'],$file);
+			$file = str_replace('<?=$Shipping_Special_Instructions?>',$shipping['Special_Instructions'],$file);
+			$file = str_replace('<?=$Payment_Method?>',$order['pay_info']['method'],$file);
+			$file = str_replace('<?=$CC_Info?>',$CC_Info,$file);
+			$file = str_replace('<?=$IP_Address?>',$REMOTE_ADDR,$file);
+			$file = str_replace('<?=$HTTP_USER_AGENT?>',$HTTP_USER_AGENT,$file);
+			$file = str_replace('<?=$REMOTE_HOST?>',$REMOTE_HOST,$file);
+			$file = str_replace('<?=$HTTP_REFERER?>',$SC['referer'],$file);
+			
+			$message = $file;
+	
+			send_email_out($email_order_to,$subject, $message,"\"$from\"","\"$reply_to\"");
+		}
+}
+?>

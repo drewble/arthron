@@ -1,0 +1,60 @@
+<?
+// purpose of function is to exp sessions based on value of Session_Timeout in store settings
+// function returns an array where the key named "idle_time" contains the amount of time the user was idle
+// setting exp_only to 1 will not delete the sessions from TEMP_Sessions, it will just unset the session variable itself
+//
+// file modified on 7/13/03 to fix restocking inventory bug
+function exp_sessions($exp_only=0){
+global $SC,$SESSID,$site_isp_root;
+
+$time = time();
+
+// get timeout in secs for sessions from store info
+	$SC_timeout = get_field_val("Store_Information","Session_Timeout");
+	if(!$SC_timeout) $SC_timeout = 180;
+	$SC_timeout = $SC_timeout * 60; // convert timeout from mins to secs
+	$exp_limit = $time - $SC_timeout;
+
+	$exp_sessions = get_records("TEMP_Sessions","*","Last_Activity <= '$exp_limit'","Last_Activity","ASC");
+	if($exp_sessions[0]) {
+		// loop through all expired sessions
+		for ($x=0;$exp_sessions[$x];$x++){
+			$exp_session=$exp_sessions[$x];
+			$SC_id = $exp_session['SESSION_ID'];
+
+		// restock inventory
+			if(get_field_val("Store_Information","Use_Inventory_Control")){
+				$order = $exp_session['Cart_Contents'];
+				$order = unserialize($order);
+				// loop through items in the order stored in the TEMP_Sessions table and restock!!
+				for($i=0;$order[$i];$i++) {
+//below line is for testing to see each item getting added back to the inventory
+//					print $order[$i]['qty']." ".$order[$i]['Name']." in abandoned session ".$exp_session['SESSION_ID']."<br>";
+					$rn = $order[$i]['record_number'];
+					$qty = $order[$i]['qty'];
+					$num_in_stock = get_field_val("Products","Number_in_Stock","record_number = '$rn'");
+					$new_num_in_stock = $num_in_stock + $qty;
+					set_field_val("Products","Number_in_Stock",$new_num_in_stock,"record_number = '$rn'"); // add items back to inventory
+				}
+			}
+			$query = "DELETE FROM TEMP_Sessions WHERE SESSION_ID = '$SC_id'";
+			if(!$exp_only) 	mysql_query($query) or print "<br>".mysql_error()."<br>";
+			if (session_id() == $SC_id) {
+					$idle_time_secs = $time - $exp_session['Last_Activity'];
+					$idle_time_mins = round($idle_time_secs/60);
+					$expired['idle_time'] = $idle_time_mins;
+			}
+		}
+	}
+// this section handles the case where the experied session has already been deleted by another customer from TEMP_Sessions. In that case, we
+// still need to expire the session variable, but the other customere has already restocked the inventory and delted the associated record in TEMP_Sessions
+	if(!isset($SC['Last_Activity'])) $SC['Last_Activity'] = time();	// this gets set in track_sessions
+	if($SC['Last_Activity'] <= $exp_limit && !$expired){
+		$idle_time_secs = $time - $SC['Last_Activity'];
+		$idle_time_mins = round($idle_time_secs/60);
+		$expired['idle_time'] = $idle_time_mins;
+	}
+return $expired;
+}
+// file added 09/25/02 for v1.0.9 to assist with inventory control
+?>

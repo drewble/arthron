@@ -1,0 +1,299 @@
+<?
+// ----------- purpose of function is to add users to the customers table in the DB -----------------------//
+// file modified on 12/09/2003 for v1.4.0 to support setting a default and/or first country in the Country select inputs
+
+function add_user(){
+	global
+	$SC,$show_login,$HTTP_REFERER,$post_add_user,$modify_account,$HTTP_POST_VARS,$return,$HTTP_SESSION_VARS;
+	
+	$add_usr = $HTTP_POST_VARS[add_usr];
+
+	// determine where to return to after successfully creating an account
+	if (!$SC['new_user_return']) {
+		if ($return == "show_cart") {
+			$SC['new_user_return'] == $SC['secure_cart_page']."?show_cart=1";
+		} else {
+			// in case referer doesn't get set, just go back to home page
+			$SC['new_user_return'] = $SC['secure_cart_page']."?acct_mod=1";
+		}
+	}
+
+//	if($added_account) {
+//		print "<span class=\"action_msg\">Account created! You are now logged in as ".$SC['user']['Username']."</span>";
+//		}
+
+//	if($modified_account) {
+//		$SC['cart_message'] = "<span class=\"action_msg\">Account modified!</span>";
+//		}
+//--------------- determine admin status and set in variable -----------------//
+$is_admin = ($SC['user']['Privelage_Level'] == "admin");
+
+// --------------- determine whether to restrict certain fields ---------------//
+if ($modify_account && !$is_admin) {
+	$restrict_field['First_Name'] = 1;
+	$restrict_field['Last_Name'] = 1;
+	}
+
+//--------------- set title of form -------------------------------------------------------------------------------------------------------------------//
+if ($modify_account) {
+		$Title = "Modify Account Form";
+		$Instructions = "Fill out all required information and click \"Next...\" to update your account";
+	} else {
+		$Title = "New Account Form";
+		$Instructions = "Fill out all required information and click \"Next...\" to create your account";
+		}
+		
+//-------------- if updating account, set $add_usr to user logged in to populate fields -----------------------//
+if ($modify_account && !$add_usr) $add_usr = $SC['user'];		
+
+//--------------- set what to display for required and missing fields --------------------------------------------------------------------------//
+	include $SC['cart_isp_root']."/form_config.php";
+// -----------------------------------------------------------------------------------------------------------------------------------------------------//
+
+	$form_fields = get_field_array("Address_Form_Settings","Account_Fields","record_number = '1'");
+	$form_fields[] = "Confirm_Password";	// bug fix for 1.0.3
+	if($is_admin) $form_fields[] = "Privelage_Level";
+		
+// -------------- set required fields ---------------------------------------------------------------------------------------------------------------//
+	$required = get_field_array("Address_Form_Settings","Required_Account_Fields","record_number = '1'");
+	$required[] = "Confirm_Password"; // bug fix for 1.0.3
+// -----------------------------------------------------------------------------------------------------------------------------------------------------//
+
+
+//-------------- set STATE and COUNTRY ------------------------------------------------------------------------------------------------------//
+	if (!$HTTP_POST_VARS) { 
+		if ($SC['user']) {
+			// if not posting and logged in, set current value of state and country equal to the user's info in the DB
+			$add_usr['State_or_Province'] = $SC[user][State_or_Province];
+			$add_usr['Country'] = $SC[user][Country];
+		} else {
+			$add_usr['Country'] = get_field_val("Address_Form_Settings","Default_Country"); // grab default country and set as selected in select inputs
+		}
+	}
+
+	$first_country = get_field_val("Address_Form_Settings","First_Country"); // grab first country for select inputs
+
+	$fill = get_records("Field_Definition","*","Table_Name = 'Customers' AND Display_As = 'Select Input'");
+	//$fill=get_field_formats("Fill_Fields_From","Customers");
+	$fill[State_or_Province][Field_Name] = "add_usr[State_or_Province]";
+	$fill[Country][Field_Name] = "add_usr[Country]";
+	$State = get_defined_field("Customers","State_or_Province",$SC[user][record_number],0,"no",0,"add_usr[State_or_Province]",$add_usr[State_or_Province]);
+//	$State = fill_field_from_table("State_or_Province",$fill[State_or_Province],$add_usr[State_or_Province]);
+//	$Country = get_defined_field("Customers","Country",$SC[user][record_number],0,"no",0,"add_usr[Country]",$add_usr[Country]);
+//	$Country = fill_field_from_table("Country",$fill[Country],$add_usr[Country]);
+// -----------------------------------------------------------------------------------------------------------------------------------------------------//
+	$countries_from_settings = get_field_array("Address_Form_Settings","Countries","record_number = '1'",$seperator="^^");
+	$Country = "<select name=\"add_usr[Country]\">\n";
+	$Country = $Country."<option value=\"\"></option>\n";
+	if ($first_country) { // add first country from address form settings as first option in select input
+		$first_country_name = get_field_val("Countries","Name","record_number = $first_country");
+		if ($add_usr['Country'] == $first_country) $first_country_selected = "selected";
+		$Country .= "<option $first_country_selected value=\"$first_country\">$first_country_name</option>\n";
+	}
+	for($c=0;$countries_from_settings[$c];$c++){
+		$country_from_setting = $countries_from_settings[$c];
+		$country_from_setting = mysql_escape_string($country_from_setting);
+		$country_rn = get_field_val("Countries","record_number","Name = '$country_from_setting'");
+		if($add_usr['Country'] == $country_rn) {
+			$selected = "selected";
+			} else {
+			unset($selected);
+		}
+		$Country=$Country."<option $selected value=\"$country_rn\">$country_from_setting</option>\n";
+	}
+	$Country = $Country."</select>\n";
+				
+				
+				
+
+// handle form post
+if ($post_add_user){
+// -------------- check required fields ---------------------------------------------------------------------------------------------------------------//
+	for($x=0;$required[$x];$x++){
+		$required_field = $required[$x];
+		//--------- check to see if field is set --------------------------------------------------------------------------------------//
+
+	// below line - if field is restricted when updating account, and account is being updated by someone who is not an admin, don't check to see if its filled out!
+		if( (!$add_usr[$required_field] || $add_usr[$required_field] == "null" ) && !$restrict_field[$required_field]) $missing[$required_field] = 1;
+		}	
+	if(!$missing) unset($Missing_Field_Msg);
+
+//--------------- check password for compliance and match to confirmed password field -------------------------------------------------//
+	if($add_usr[Password] != $add_usr[Confirm_Password]) {
+		print "<span class=\"action_msg\">Password and Confirmed Password do not Match!</span><br>";
+		$missing[Password] = 1;
+		$missing[Confirm_Password] = 1;
+		}
+
+		
+//--------------- check Username and Password lengths for compliance with options in Admin Options table ----------------------------//
+	$min_username_length = get_field_val("Store_Information","Min_Username_Length","record_number = '1'");
+	$min_password_length = get_field_val("Store_Information","Min_Password_Length","record_number = '1'");
+	$username_length = strlen($add_usr[Username]);
+	$password_length = strlen($add_usr[Password]);
+	
+	if(!$missing[Username]){
+		if($username_length < $min_username_length) {
+			print "<span class=\"action_msg\">Username must be at least $min_username_length characters long!</span><br>";
+			$missing[Username] = 1;
+			}
+// --------------- check username for uniqueness -------------------------------------------------------//
+		$username_not_unique = get_field_val("Customers","record_number","Username = \"$add_usr[Username]\"");
+		if($username_not_unique && !$modify_account) {
+			print "<span class=\"action_msg\">The username \"$add_usr[Username]\" is already in use. Please choose another username.</span><br>";
+			$missing[Username] = 1;
+			}
+		}
+		
+	if(!$missing[Password]){
+		if($password_length < $min_password_length) {
+			print "<span class=\"action_msg\">Password must be at least $min_password_length characters long!</span><br>";
+			$missing[Username] = 1;
+			}
+		}
+	
+			
+// --------------- check email address for uniqueness -------------------------------------------------------//
+	if(!$missing[Email_Address] && !$modify_account){
+		$email_not_unique = get_field_val("Customers","record_number","Email_Address = \"$add_usr[Email_Address]\"");
+		if($email_not_unique) {
+			print "<span class=\"action_msg\">The email address \"$add_usr[Email_Address]\" is already entered in our customer database.</span><br>";
+			$missing[Email_Address] = 1;
+			}
+		}
+
+	if(!$missing) {
+		unset($form_fields_new);
+		for($x=0;$form_fields[$x];$x++){
+			if ($form_fields[$x] != "Confirm_Password") $form_fields_new[] = $form_fields[$x];
+			}
+		$form_fields = $form_fields_new;
+		unset($add_usr[Confirm_Password]);				// field doesn't exist in table, so unset it
+		$add_usr[Password] = md5($add_usr[Password]);
+		
+//------------ add user to DB ----------------------------------------------------------------------------//
+		if ($modify_account) {
+			if (!$is_admin) $add_usr[record_number] = $SC[user][record_number];
+			modify_record("Customers","record_number = \"$add_usr[record_number]\"",$form_fields,$add_usr);
+			$SC['cart_message'] = "<div class=\"action_msg\">Account modified!</div>";
+		} else {
+			add_record("Customers",$form_fields,$add_usr);
+			$SC['cart_message'] = "<div class=\"action_msg\">Account created. You are now logged in as ".$add_usr['Username']."</div>";
+		}
+
+//		if(!$modify_account) $SC[user] = $add_usr;
+
+		$SC['user'] = $add_usr;
+		if(!$SC['user']['record_number']) $SC['user']['record_number'] = mysql_insert_id();
+
+		if($modify_account) {
+			$update_type = "Updating";
+			$back_link = "modified_account";
+			$SC['modified_account']=1;
+		} else {
+			$update_type = "Creating";
+			$back_link = "added_account";
+			$SC['added_account'] = 1;
+		}
+		if ($SC['new_user_return']) {
+			$return_page = $SC['new_user_return'];
+			unset($SC['new_user_return']);
+		} else {
+			if ($SC['order']) {
+				$return_page = $SC['secure_cart_page']."?show_cart=1";
+			} else {
+				$return_page = $SC['secure_cart_page']."?acct_mod=1";
+			}
+		}
+		// session variable storage....do not remove or move this section! it must be after your closing HTML tag
+		$HTTP_SESSION_VARS['sc'] = $SC;  // we need this here, because the page refreshes before it makes it to the bottom of store.php
+	?>
+<head>
+<meta http-equiv="Refresh" content="1; URL=<?=$return_page?>">
+</head>
+
+
+<font size="2" face="tahoma"><b><?=$update_type?> Account...</b><font>
+<?
+die;
+	}
+
+	} else {
+		unset($Missing_Field_Msg); // unset this field so it doesn't show in template unless the data was posted!
+		}
+
+
+
+if (!$SC['added_account'] && !$SC['modified_account']) {			// dont show form to create / modify user if it was just submitted successfully
+// show login form if necessary
+if ($show_login) {
+	 include "$SC[cart_isp_root]/login.php";
+} else {
+// --------------- form header ----------------------------------------------//
+	include $SC[templates][add_user_header];
+
+// show link for login if necessary
+	if ($return=="show_cart") { 
+		print "<span style='width:100%; text-align:center'>Are you a returning customer? <a style=\"color: blue; text-decoration: underline\"  href=\"?show_login=1&show_cart=1&shipping_info=1\" >Login here</a> for easier ordering!</span><br><br>\r";
+		}
+
+
+	for($x=0;$form_fields[$x];$x++){
+		unset($Field_Style);
+		$field_name = $form_fields[$x];
+		$Field_Name = "add_usr[".$form_fields[$x]."]";
+		$Field_Descriptor = str_replace("_"," ",$field_name);
+		$Field_Value = $add_usr[$field_name];
+
+if ($modify_account && $is_admin)	print "<input type=\"hidden\" name=\"add_usr[record_number]\" value=\"$add_usr[record_number]\">\r";
+
+
+
+//---------- set styles for fields that need to be different from the default -------------//
+		if ($field_name == "Postal_Code") $Field_Style = "style=\"width: 50\"";
+		if ($field_name == "Username") $Field_Style = "style=\"width: 60\"";
+
+
+	
+		// --------- set required indicator -----------------//
+		if($missing[$field_name]) {
+			$Required = $missing_ind;
+			} else {
+				if(in_array($field_name,$required)) {
+					$Required = $required_ind;
+					} else {
+						unset($Required);
+						}
+				}
+						
+		if ($field_name=="State_or_Province") {
+			print "<span class=\"field_name\">$Field_Descriptor: </span><span style=\"text-align: left; width: 325\">$State<span style=\"width: 20\">$Required</span></span><br>";
+			} else {
+				if ($field_name == "Country") {
+					print "<span class=\"field_name\">$Field_Descriptor: </span><span style=\"text-align: left; width: 325\">$Country<span style=\"width: 20\">$Required</span></span><br>";
+					}  else {
+					if ($field_name == "Password" || $field_name == "Confirm_Password"){
+							?>
+						 	<span class="field_name"><?=$Field_Descriptor?>: </span>
+							<span style="width: 325; text-align: left">
+								<input style="width:60" type="password" class="field_input" name="<?=$Field_Name ?>" value="">
+							<span style="width: 20"><?=$Required?></span></span>
+							<br>
+							<?
+						} else {
+							if($restrict_field[$field_name]) {
+								include $SC[templates][add_user_restricted_fields];
+								} else {
+									include $SC[templates][add_user_fields];
+									}
+							}
+				}
+			}
+		}
+
+// --------------- form footer ----------------------------------------------//
+		include $SC[templates][add_user_footer];
+}
+}
+}
+?>

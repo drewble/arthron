@@ -1,0 +1,47 @@
+<?
+// purpose of function is to set an array equal to the values
+// from specially formated fields
+//
+// modified on 8/3/03 to fix problem with not returning more than 1 relationship for a given table
+function get_field_formats($source,$table,$where=0){
+
+if($source != "Relationship") {
+	// section for determining whether fields have to be textareas, arrays, or uploads
+	$query = "SELECT * FROM $source WHERE Table_Name = \"$table\"";
+	if ($where) $query = "$query AND $where";
+	$result = mysql_query($query);
+	$m = mysql_fetch_array($result);
+	while($m){
+		$value_from[] = $m;
+		$m = mysql_fetch_array($result);
+	}
+	// if fill_from field is set, set fill equal to the fields that will be filled for later use
+	unset($value);
+	if ($value_from) {
+		for($x=0; $value_from[$x]; $x++){
+			$field_to_value = $value_from[$x]["Field_Name"];
+			$value[$field_to_value] = $value_from[$x];
+		}
+	}
+
+// END OF section for determining whether fields have to be textareas
+} else {
+	// records from the Relationship table are different, so below is a special case
+	$select = "Table_1, Manage_With_Table_1_Field, Table_2, Manage_With_Table_2_Field";
+	$where = "Table_1 = \"$table\" OR Table_2 = \"$table\"";
+	$records = get_records("Relationship",$select,$where,0,0);
+
+	for($x=0;$records[$x];$x++){
+		$record = $records[$x];
+		if ($record['Table_1'] == $table) {
+			$value[$record['Manage_With_Table_1_Field']] = 1;
+		}
+		if ($record['Table_2'] == $table) {
+			$value[$record['Manage_With_Table_2_Field']] = 1;
+		}
+	}
+}
+		
+return $value;
+}
+?>

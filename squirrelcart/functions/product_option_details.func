@@ -1,0 +1,145 @@
+<?
+// file modified on 9/28/2003 to fix problem displaying option name when no image is used
+// file modified on 11/5/2003 to fix option details not displaying bug
+
+// purpose of function is to loop through the options for a product, and display any details associated with each option
+// $prn is product record number
+// $orn is option record number. this can equal either the actual record number of the option you want to show,
+//                or "all" to show all options on one page.
+function product_option_details($prn,$op_rn) {
+	global
+	$SC;
+
+	// get category record number
+	$crn = get_field_val("Products","Category","record_number = \"$prn\"");
+	// get value of options for this product's category into an array
+	$cat_options = get_field_val("Categories","Options","record_number = \"$crn\"");
+
+
+	if ($cat_options)  $cat_options = array_to_sql("explode",$cat_options); //get all options into an array
+
+	// get options from product
+	$prod_options = get_field_val("Products","Options","record_number = \"$prn\"");
+	$prod_options = array_to_sql("explode",$prod_options); //get all options into an array
+
+	// get option behavior. this will determine how to treat options
+	$option_behavior = get_field_val("Products","Option_Behavior","record_number = \"$prn\"");
+		
+	// get array with all options depending on option behavior that is set. 
+	// 1 equals "Override Category Option"
+	// 2 equals "Merge with Category Options
+	if ($option_behavior == 1 || !$cat_options) {
+		$options = $prod_options;
+	} else {
+		if ($option_behavior == 2 || !$option_behavior) {
+			$options = array_merge($cat_options,$prod_options);		// merge the options together
+		}
+	}
+	
+	// loop through options
+	for($i=0;isset($options[$i]);0){ 
+		if ($options[$i]) {
+			// set field values. v stands for values, and may include record numbers instead of actual names - ie "1" or "2" instead of "Red" or "Blue"
+			$option_name_v = $options[$i++];
+			$option_value_v = $options[$i++];
+			$option_price = $options[$i++];
+			$option_weight = $options[$i++];
+				
+			// set option names into an array. only put unique values in
+			if (is_array($option_names)) $not_in_array = !in_array($option_name_v, $option_names);
+			if($not_in_array || !$option_names) {
+				$option_names[] = $option_name_v;
+				$option_instruction[] = get_field_value("Product_Options",$option_name_v,"Instruction");
+				$brk = get_field_val("Product_Options","Break","record_number = $option_name_v");
+				if($brk) {
+					$option_break[] = "<BR>";
+				} else {
+					$option_break[] = "";
+				}
+			}
+				
+			// set relative values of fields for display only - changes record numbers to actual english equivelants - ie. "red" or "blue"
+			$option_name_d = get_field_value("Product_Options",$option_name_v,"Name");
+			$option_value_d = get_field_value("Product_Option_Values",$option_value_v,"Option_Value");
+	
+			// set a variable to loop through later. $option[this key is value of option name][this key is to loop through later][values]
+			$temp["name_d"] = $option_name_d;
+			$temp["value_v"] = $option_value_v;
+			$temp["value_d"] = $option_value_d;
+			$temp["price"] = $option_price;
+			$temp["weight"] = $option_weight;
+			$option[$option_name_v][]=$temp;
+		} else {
+			$i = $i+4;
+		}
+	}
+	unset($display_options);
+
+	for ($i=0;$option_names[$i];$i++){ // loop through each option name
+		unset($Option_Name);
+		unset($key1);
+		$key1 = $option_names[$i]; // option name is key for next operation 
+
+		// decide whether or not to show option details for this option
+		$show_detail = get_field_val("Product_Options","Show_Detail","record_number = \"$key1\"");
+
+		if ($show_detail) {
+			//	at this point, 	we know that the record for the option allows the showing of detail, now we need to
+			// determine whether or not this function was called in a manner that would warrant showing this option
+			if ($op_rn != $key1 && $op_rn != "all") unset($show_detail);
+		}
+			
+		if ($show_detail){
+			// this is where we will include the template file for showing the option header
+			$Option_Name = $option[$key1][0][name_d];
+
+			// $Master_Option will contain all of the fields that are set for this option for use in the template
+			$Master_Option = get_records("Product_Options",0,"record_number = \"$key1\"",0,0);
+			$Master_Option = $Master_Option[0];
+			if (is_file($SC['site_isp_root']."/".$SC['image_folder']."/".$Master_Option['Image_of_Name'])) {
+				$image_size = @GetImageSize($SC['site_isp_root']."/".$SC['image_folder']."/".$Master_Option['Image_of_Name']);
+				$Master_Option['Image_of_Name'] = "<img $image_size[3] src=\"$SC[site_www_root]/$SC[image_folder]/$Master_Option[Image_of_Name]\" alt=\"$Option_Name\">";
+			} else {
+				$Master_Option['Image_of_Name'] = $Master_Option['Name'];
+			}
+			include $SC[templates][product_option_details_header];
+			for ($k=0;$option[$key1][$k];$k++){
+				if ($option[$key1][$k][value_d] != "As Shown" && $option[$key1][$k][value_d] != "None" && $option[$key1][$k][value_d] != "") {
+					unset($Price);
+					unset($Weight);
+					unset($Thumbnail_Image);
+					unset($Image);
+					unset($Preformated);
+					unset($Option_Value);
+					$Price = $option[$key1][$k]["price"];
+					$Weight = $option[$key1][$k]["weight"];
+					$Option_Value = $option[$key1][$k][value_d];
+					if($Price == "----") unset($Price);
+					if($Weight == "----") unset($Weight);
+					if($Price) $Preformated = $Preformated."<b>Price: </b>$Price<br>";
+					if($Weight) $Preformated = $Preformated."<b>Weight: </b>$Weight<br>";
+					// Product Option Value record number
+					$orn = $option[$key1][$k][value_v];
+					// get images of option into variables
+					$image = get_field_val("Product_Option_Values","Image","record_number = \"$orn\"");
+					if($image){
+						$Image = "$SC[site_www_root]/$SC[image_folder]/$image";
+						$image_size = GetImageSize($SC['site_isp_root']."/".$SC['image_folder']."/$image");
+						$Image = "<img $image_size[3] src=\"$Image\" alt=\"$Option_Value\">";
+					}
+					$thumbnail_image = get_field_val("Product_Option_Values","Thumbnail_Image","record_number = \"$orn\"");
+					if($thumbnail_image){
+						$Thumbnail_Image = "$SC[site_www_root]/$SC[image_folder]/$thumbnail_image";
+						$Thumbnail_Image = "<img src=\"$Thumbnail_Image\" alt=\"$Option_Value\">";
+					}
+					// this is where we will include the template file to display each individual options detail
+					include $SC[templates][product_option_details];
+				}					
+			}
+
+			// this is where we will include the template file for showing the option footer
+			include $SC[templates][product_option_details_footer];
+		}
+	} // end of showing details of option
+}
+?>

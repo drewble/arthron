@@ -1,0 +1,32 @@
+<?
+// file added on 5/22/2003 for v1.1.1
+function update_sales_stats(){
+global $SC;
+// purpose of function is to store order stats in Products_Sold table. 
+// Column Product_rn stores the record number of the item. 
+// Column Quantity stores total units sold of that particular item
+	$order = $SC['order'];
+	// loop through each item in cart
+	for($x=0;$order[$x];$x++){
+		$item = $order[$x];
+		$item_rn = $item['record_number'];
+		// check to see if item is already in the Products_Sold table, and if so, get qty
+		$existing_qty = get_field_val("Products_Sold","Quantity","Product_rn = '$item_rn'");
+		// calculate new qty of items ordered for stats
+		$new_qty = $existing_qty + $item['qty'];
+		if ($existing_qty) {
+			// update quantity in existing record for this item
+			set_field_val("Products_Sold","Quantity",$new_qty,"Product_rn = '$item_rn'");
+		} else {
+			// add new record for this item, and update qty
+			$fields[] = "Product_rn";
+			$fields[] = "Quantity";
+			$values[] = $item_rn;
+			$values[] = $new_qty;		
+			add_record("Products_Sold",$fields,$values);
+			unset($fields);
+			unset($values);
+		}
+	}
+}
+?>

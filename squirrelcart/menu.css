@@ -1,0 +1,208 @@
+<style type="text/css">
+#menuBar {
+  background-color: silver;
+  border: 1px solid;
+  border-color: #f0f0f0 #808080 #808080 #f0f0f0;
+  color: #000000;
+  font-size: 1pt;
+  padding: 1px 0px 0px 1px;
+  text-align: left;
+  width: 100%;
+  height: 22px;
+}
+
+a.menuButton, a.menuButtonActive {
+  background-color: transparent;
+  border: 1px solid silver;
+  color: #000000;
+  cursor: default;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: normal;
+  margin: 1px;
+  padding: 2px 6px 2px 6px;
+  text-decoration: none;
+  height: 22px;
+  text-align: center;
+}
+
+a.BACKmenuButton, a.BACLmenuButtonActive {
+  background-color: transparent;
+  border: 1px solid black;
+  color: #000000;
+  cursor: default;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: normal;
+  margin: 1px;
+  padding: 2px 6px 2px 6px;
+  position: relative;
+  left: 0px;
+  top: 0px;
+  text-decoration: none;
+  height: 22px;
+  text-align: center;
+}
+
+a.menuButton:hover {
+  background-color: transparent;
+  border: solid 1px;
+  border-color: #f0f0f0 #808080 #808080 #f0f0f0;
+  color: #000000;
+}
+
+a.menuButtonActive, a.menuButtonActive:hover {
+  border-color: #808080 #f0f0f0 #f0f0f0 #808080;
+  left: 1px;
+  top: 1px;
+}
+
+a.menuButton2, a.menuButton2:Active {
+  background-color: transparent;
+  border: 1px solid silver;
+  color: #000000;
+  cursor: default;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: normal;
+  position: relative;
+  left: 0px;
+  top: 0px;
+  text-decoration: none;
+  text-align: center;
+  margin:0;
+width: 100%;
+}
+
+a.menuButton2:hover {
+  background-color: transparent;
+  border: solid 1px;
+  border-color: #f0f0f0 #808080 #808080 #f0f0f0;
+  color: #000000;
+}
+
+a.menuButton2:Active, a.menuButton2:active {
+  border-color: #808080 #f0f0f0 #f0f0f0 #808080;
+  left: 1px;
+  top: 1px;
+}
+
+
+a.menuButton3 {
+  background-color: transparent;
+  border: 1px solid white;
+  color: #000000;
+  cursor: default;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: normal;
+  position: relative;
+  left: 0px;
+  top: 0px;
+  text-decoration: none;
+  text-align: center;
+  margin:0;
+width: 100%;
+}
+
+a.menuButton4 {
+  background-color: transparent;
+  border: 2px solid #DFDFDF;
+  color: #000000;
+  cursor: default;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: normal;
+  position: relative;
+  left: 0px;
+  top: 0px;
+  text-decoration: none;
+  text-align: center;
+  margin:0;
+  width: 100%;
+  margin-right: 10px; text-align: left; padding-left: 2px; padding-top: 1px
+}
+
+
+a.menuButton4:hover {
+  background-color: transparent;
+  border: solid 2px;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  color: #000000;
+}
+
+a.menuButton3:hover {
+  background-color: transparent;
+  border: solid 1px;
+  border-color: #f0f0f0 #808080 #808080 #f0f0f0;
+  color: #000000;
+}
+
+a.menuButton3:Active, a.menuButton4:Active, a.menuButton2:active {
+  border-color: #808080 #f0f0f0 #f0f0f0 #808080;
+  left: 1px;
+  top: 1px;
+}
+
+
+.menu {
+  background-color: #D4D4D4 ;
+  border: 2px solid;
+  border-color: #f0f0f0 #808080 #808080 #f0f0f0;
+  padding: 0px;
+  padding-bottom: 2;
+  position: absolute;
+  text-align: left;
+  visibility: hidden;
+  width: 110;
+  z-index: 1;
+}
+a.menuItem {
+  background-color: transparent;
+  color: #000000;
+  cursor: default;
+  display: block;
+  font-family: Tahoma,"MS Sans Serif", Arial,sans-serif;
+  font-size: 8pt;
+  font-style: normal;
+  font-weight: normal;
+  margin: 0px;
+  padding: 2px;
+  padding-left: 4px;
+  padding-right: 16px;
+  text-decoration: none;
+  white-space: nowrap;
+  width: 100%; 
+}
+
+a.menuItem:hover {
+  background-color: yellow;
+  color: #000000;
+  width:100%;
+}
+
+.menuItemSep {
+  border-bottom: 1px solid #f0f0f0;
+  border-top: 1px solid #808080;
+  margin: 3px 4px 3px 4px;
+}
+
+.menuSectionSep {
+  border-right: 1px solid #f0f0f0;
+  border-left: 1px solid #808080;
+  margin: 1px 5px 1px 5px;
+  height: 20;
+}
+
+.menuInput {
+	font-family: Tahoma,"MS Sans Serif", Arial,sans-serif;
+	height: 17; 
+	font-size: 9px;
+	margin-top: 2;
+}
+</style>

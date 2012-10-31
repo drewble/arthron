@@ -1,0 +1,38 @@
+<?
+// file added on 5/19/2003 for v1.2
+// file modified on 7/15/2003 for v1.2 to fix session loss when not using cookies
+//
+// purpose of function is to display a subset of new products in a preview window
+// number of products displayed is determined by "New Products per Preview" field in Store Settings
+// number of products per row is determined by "New Products per Row" field in Store Settings
+function new_product_preview(){
+	global $SC;
+
+	// get date cutoff, and number of items to show when previewing new items
+	$cutoff_days = get_field_val("Store_Information","New");
+	
+	// in case someone enters invalid chars. in new field, this will default it to 14 days
+	if (!is_numeric($cutoff_days)) $cutoff_days = 14; 
+	$todays_date = date("Y-m-d");
+	
+	// get current date in UNIX timestamp, and convert it to MySQL format, in $cutoff_date
+	$cutoff_unix_date = mktime (0,0,0,date("m")  ,date("d")-$cutoff_days,date("Y"));
+	$cutoff_date = date("Y-m-d",$cutoff_unix_date);
+	
+	// get number of items to show on new_product_preview
+	$limit = get_field_val("Store_Information","New_Products_per_Preview");
+	if (!is_numeric($limit)) $limit = 6;
+	
+	// below line will exclude out of stock items, if specified to do so in store settings
+	if($SC['inventory_control'] && $SC['out_of_stock_behavior'] == "1") $exclude_not_in_stock = "	AND Number_in_Stock > 0";
+
+	$where = "Not_for_Sale <> 1 AND Date_Added_to_Cart >= '$cutoff_date' $exclude_not_in_stock";
+	
+	// set variables that this function needs to operate properly
+	$GLOBALS['qry'] = "1"; // acts like a search
+	$GLOBALS['action'] = "show";
+	$GLOBALS['where'] = $where;
+
+	show_products("new preview","",$where,$limit);
+}
+?>

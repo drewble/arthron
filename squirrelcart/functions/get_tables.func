@@ -1,0 +1,9 @@
+<?
+function get_tables($db){
+	$result = mysql_list_tables ($db);
+	for($i = 0; $i < mysql_num_rows ($result);  $i++) {
+	    $tables[$i] = mysql_tablename ($result, $i);
+		}
+	return $tables;
+}
+?>

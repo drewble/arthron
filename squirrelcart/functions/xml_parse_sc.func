@@ -1,0 +1,27 @@
+<?php
+function xml_parse_sc($response){
+	// $response must be an http response, including headers AND xml content
+	// function returns an array, like so:
+	// $array['vals'] - contains values
+	// $array['index'] - contains index to each value
+	//
+	// find starting position of XML indicator in the result, which looks like:<?xml version='1.0'
+	$xml_start = strpos($response,"<?xml");
+	if(!$xml_start) $xml_start = strpos($response,"<? xml");
+	// remove all text above XML opening tag, so we can parse it
+	$xml_response=substr($response,$xml_start);
+	// parse XML response, and set $index and $vals. $index stores keys in $vals corresponding to the name of the tag you refer to as the key
+	$p = xml_parser_create();
+	xml_parse_into_struct($p,$xml_response,$vals,$index);
+	xml_parser_free($p);
+	/* for testing
+		echo "Index array\n";
+		print_r($index);
+		echo "\nVals array\n";
+		print_r($vals);
+	*/
+	$result['vals'] = $vals;
+	$result['index'] = $index;
+	return $result;
+}
+?>

@@ -1,0 +1,15 @@
+<?
+function fix_reserved_mysql_values($values){
+	if(is_array($values)){
+		for ($x=0;$values[$x];$x++){
+			$value=$values[$x];
+			$fixed_value[$x]=str_replace("ZX", "", $value);
+			$fixed_value[$x]=str_replace("ZQZ", "-", $fixed_value[$x]);
+		}
+	} else {
+			$fixed_value=str_replace("ZX", "", $values);
+			$fixed_value=str_replace("ZQZ", "-", $fixed_value);
+		}
+	return $fixed_value;
+}
+?>

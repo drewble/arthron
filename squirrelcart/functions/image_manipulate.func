@@ -1,0 +1,252 @@
+<?
+	/*
+		File added on 10/09/2003 for v1.3.0
+		File modified on 12/7/2003 for v1.4.0 - to generate errors if GD is not 2.0.1 or newer
+		
+		Purpose:
+			Resize and/or manipulate an  image (jpg, png, or gif, if supported by version of GD)
+			
+		Result: 
+			Returns an array where $result['error'] contains any errors, and $result['image'] contains path to new image
+	
+		Parameters:
+			$img_path should equal the path to the image you want to resize
+			$dest_path should equal the new name (including path) for the resized image. Leave out the file extension!!! If left blank, file will be overwritten
+			$dest_width  new width for image. If missing or 0, $dest_height will be used, and image will retain proportions
+			$dest_height  new height for image. If missing or 0, $dest_width will be used, and image will retain proportions
+			$rotate - degrees to rotate image. This only works in PHP 4.3.0 and newer.
+			$mirror - mirror image - value can be "vertical" or "horizontal"
+			$crop_x - if cropping, this is the X coordinate of the top left corner of the src image.
+			$crop_y - if cropping, this is the Y coordinate of the top left corner of the src image.
+			$output - if set to 1, will output an image stream directly, instead of saving the file
+			
+		This function supports resizing jpg, gif, and png files, and requires GD v 2.0.1 or newer. Support for writing GIFs won't be back in PHP until mid 2004. 
+		Until then, when this image reads a gif, it will write it as a PNG file.
+		
+		If you modify a transparent GIF PRIOR to mid 2004, the transparent color in the original image will be black in the new image. this should go away mid 2004 when
+		GIF write support returns to GD
+		
+		There is a bug that causes certain rotations to product black sections on the image in PHP 4.3.2......it is described here:
+			http://bugs.php.net/bug.php?id=24155
+	*/
+	function image_manipulate($orig_img_path,$dest_path=0,$dest_width=0,$dest_height=0,$rotate=0,$mirror=0,$crop_x=0,$crop_y=0,$output=0) {
+		
+		// figure out what we can and can't do!
+		$gif_read = function_exists("imagecreatefromgif");
+		$gif_write = function_exists("imagegif");
+		$jpg_read = function_exists("imagecreatefromjpeg");
+		$jpg_write = function_exists("imagejpeg");
+		$png_read = function_exists("imagecreatefrompng");
+		$png_write = function_exists("imagepng");
+
+		// check and see if we can write any file formats...if not, then bale out of function
+		if (!($gif_write + $jpg_write + $png_write)) $error = "No GD Library support. Unable to resize image.";
+		if (!function_exists("imagecreatetruecolor")) $error = "GD version 2.0.1 or higher required. Unabled to continue.";
+		/* section below can be activated to determine image capabilities
+		print "gif read: $gif_read<br>gif write: $gif_write<br>";
+		print "jpeg read: $jpg_read<br>jpeg write: $jpg_write<br>";
+		print "png read: $png_read<br>png write: $png_write<br>";
+		*/
+		
+		// check to see if image is readable
+		if (!is_readable($orig_img_path)) $error = "Unable to read source image $orig_img_path.";
+
+		if ($error) {
+			$image['error'] = $error;
+			return $image;
+		}
+
+		// figure out the mime type of the image, and create a GD image identifier using the proper function
+		$mime_type = getimagesize($orig_img_path);
+		$mime_type = $mime_type['mime'];
+
+		// print "mime type for $orig_img_path is $mime_type<br>";
+
+		switch($mime_type) {
+			case "image/jpeg":
+		    case "image/pjpeg":
+		    	if ($jpg_read) {
+					$src_img = imagecreatefromjpeg($orig_img_path);
+			        break;
+				}
+		    case "image/png":
+				if ($png_read) {
+			        $src_img = imagecreatefrompng($orig_img_path);
+			        break;
+				}
+		    case "image/gif":
+				if ($gif_read) {
+			        $src_img = imagecreatefromgif($orig_img_path);
+			        break;
+				}
+		    default:
+		        $error = "Unknown File Format or MIME Type";
+		}
+		
+		// if image resource ID was obtained above, continue with resize operations
+		if ($src_img) {
+			// if no path specified, use the original file name (overwrite)
+			if (!$dest_path) {
+				$file_ext = strrchr($orig_img_path, ".");
+				$dest_path = str_replace($file_ext,"",$orig_img_path);
+			}
+			$src_width = imagesx($src_img); // get image width
+			$src_height = imagesy($src_img); // get image height
+			
+			$transparent_color = imagecolortransparent($src_img);
+
+			// if image is not a truecolor image, a lot of stuff won't work...we need to convert it first
+			$temp_img = imagecreatetruecolor($src_width, $src_height);
+			imagecopyresampled($temp_img, $src_img, 0, 0, 0, 0, $src_width, $src_height, $src_width, $src_height);
+			$src_img = $temp_img;
+
+			// for rotation, we will keep the size of the image the same, so set it to trigger the resize and rotate below
+			if ($rotate || $mirror) {
+				$dest_width = $src_width;
+				$dest_height = $src_height;
+			}
+
+			// if at least one new dimension was passed to this function, continue
+			if ($dest_width + $dest_height) {
+				// if only height (y) was specified, calculate x
+				if (!$dest_width) $dest_width = $dest_width = $dest_height / ($src_height / $src_width);
+				// if only width (x) was specified, calculate y
+				if (!$dest_height) $dest_height = ($src_height / $src_width) * $dest_width;
+				// make a blank image to receive resized image
+				$dest_img = imagecreatetruecolor($dest_width, $dest_height);
+
+				// if cropping original image
+				if ($crop_x + $crop_y > 0) {
+					$src_width = $dest_width;
+					$src_height = $dest_height;
+					// copy original image into the new image, resized
+					imagecopyresampled($dest_img, $src_img, 0, 0, $crop_x, $crop_y, $dest_width, $dest_height, $src_width, $src_height);
+				} else {
+					// copy original image into the new image, resized
+					imagecopyresampled($dest_img, $src_img, 0, 0, 0, 0, $dest_width, $dest_height, $src_width, $src_height);
+				}
+				
+				
+				// optional rotate of image
+				if ($rotate) {
+					$degrees = $rotate;
+					if (function_exists("imagerotate")) {
+						$white = imagecolorallocate($dest_img,255,255,255);
+						$dest_img = imagerotate($dest_img,$degrees,$white);
+					} else {
+						$error = "Unable to rotate image. Rotating images requires the GD Library and PHP 4.3.0 or newer.";
+					}
+				}
+
+			// optional image mirror
+			if ($mirror) {
+				$last_x = $src_width - 1; // farthest pixel to the right of the image
+				$last_y = $src_height - 1; // farthest pixel to the bottom of the image
+				if ($mirror == "vertical") {
+					// loop through each pixel on the y axis
+					for ($src_y = 0; $src_y <= $last_y; $src_y++){
+						$dest_y = $src_y;
+						// loop through each  pixel on the x axis, from left to right
+						for ($src_x = 0; $src_x <= $last_x; $src_x++){
+							$src_color = imagecolorat($src_img,$src_x, $src_y); // color of current x pixel from source image
+							$dest_x = $last_x - $src_x; // pixel to write to. should be on opposite side of image on the x axis
+							imagesetpixel($dest_img, $dest_x, $dest_y, $src_color); // write pixel to new image
+						}
+					}
+				}
+				if ($mirror == "horizontal") {
+					// loop through each pixel on the x axis
+					for ($src_x = 0; $src_x <= $last_x; $src_x++){
+						$dest_x = $src_x;
+						// loop through each  pixel on the y axis, from left to right
+						for ($src_y = 0; $src_y <= $last_y; $src_y++){
+							$src_color = imagecolorat($src_img,$src_x, $src_y); // color of current y pixel from source image
+							$dest_y = $last_y - $src_y; // pixel to write to. should be on opposite side of image on the y axis
+							imagesetpixel($dest_img, $dest_x, $dest_y, $src_color); // write pixel to new image
+						}
+					}
+				}
+			}
+
+			if ($output) header("Content-Type: $mime_type");
+
+			// figure out which function we can use to write image to disk, and write it!
+			switch($mime_type) {
+				case "image/jpeg":
+			    case "image/pjpeg":
+					if ($jpg_write) {
+						$new_name = "$dest_path.jpg";
+						if ($output) {
+							$result = @imagejpeg($dest_img);
+							imagedestroy($dest_img);
+						} else {
+							$result = @imagejpeg($dest_img,$new_name);
+						}
+			    	    break;
+					}
+			    case "image/png":
+					if ($png_write) {
+						if ($transparent_color) imagecolortransparent($dest_img,$transparent_color); // if image was transparent, set trans. color in new image
+						$new_name = "$dest_path.png";
+						if ($output) {
+							$result = @imagepng($dest_img);
+							imagedestroy($dest_img);
+						} else {
+							$result = @imagepng($dest_img,$new_name);
+					        break;
+						}
+					}
+			    case "image/gif":
+					if ($gif_write) {
+						if ($transparent_color) imagecolortransparent($dest_img,$transparent_color); // if image was transparent, set trans. color in new image
+						$new_name = "$dest_path.gif";
+						if ($output) {
+							$result = @imagegif($dest_img);
+							imagedestroy($dest_img);
+						} else {
+							$result = @imagegif($dest_img,$new_name);
+					        break;
+						}
+					} else {
+						if ($png_write) {
+							if ($transparent_color) imagecolortransparent($dest_img,$transparent_color); // if image was transparent, set trans. color in new image
+							$new_name = "$dest_path.png";
+							if($output) {
+								$result = @imagepng($dest_img);
+								imagedestroy($dest_img);
+							} else {
+								$result = @imagepng($dest_img,$new_name);
+						        break;
+							}
+						}
+					}
+			    default:
+			        $error = "Unable to resize image";
+			}
+			// if here, than write was attempted and failed...check permissions, and generate error accordingly
+			if (!$result) {
+				// if file exists, and is not writeable
+				if (is_file($new_name) && !is_writeable($new_name)) {
+					$error = "Unable to write file $new_name. File already exists, and server does not have necessary permissions to overwrite it.";
+				} else {
+					// file doesn't exist...check permissions to directory
+					$dir = dirname($new_name);
+					if ($dir == ".") $dir = getcwd();
+					if (!is_writeable($dir)) {
+						$error = "Unable to write to directory \"$dir\". Check file permissions.";
+					} else {
+						$error = "Unable to save resized image. Cause Unknown.";
+					}
+				}
+			}
+		} else {
+			$error = "You must specify at least 1 new dimension to resize image.";
+		}
+print $error;
+
+	}
+	$image['image'] = $new_name;
+	$image['error'] = $error;
+	return $image;
+}
+?>

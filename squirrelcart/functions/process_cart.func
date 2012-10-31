@@ -1,0 +1,119 @@
+<?
+/*
+modified 08/29/03 for v1.2.0 to fix a problem that occurred when adding adding products to the cart via maunal links
+*/
+
+function process_cart(){
+global
+$SC;
+
+//--------- loop through each item in the cart --------------------
+unset($item_count);
+
+		for($i=0,$ord=0;$SC['order'][$i];$i++){
+			$ord=$SC['order'][$i];
+	
+//------------ count items ----------------//
+	$item_count = $item_count + $ord[qty];
+
+//-----------  loop through ordered item and get options chosen into an array----------------
+			unset($ops_exp);
+			for($r=0;$ord["option"][$r];$r++){
+				$ops_exp[] = explode("^^",$ord["option"][$r]);
+				}
+
+// ---------- total options price and weight ------------------------//
+			unset($options_total);
+			unset($options_weight_total);
+			unset($Options_Price);
+			for ($f=0;$ops_exp[$f];$f++){
+				$options_total = $options_total + $ops_exp[$f][2];									// total price of options
+				if(is_numeric($ops_exp[$f][3])) $options_weight_total = $options_weight_total + $ops_exp[$f][3];		// total weight of options
+				}
+
+		// ------------ $item_total is total of all options and base price for one item
+			unset($Item_Total);
+			$Item_Total = $options_total + $ord["base_price"];
+			$Item_Total = number_format($Item_Total, 2, '.', '');
+			$SC[order][$i][item_total] = $Item_Total;	// set total price of item in session
+			
+			
+		// ------------ $item_subtotal is total of $item_total multiplied by the quantity ordered
+			unset($Item_Subtotal);
+			$Item_Subtotal = ($Item_Total * $ord["qty"]);
+			$Item_Subtotal = number_format($Item_Subtotal, 2, '.', '');
+			$SC[order][$i][item_subtotal] = $Item_Subtotal;	// set sub total price of item in session
+			$order_subtotal[] = $Item_Subtotal;
+
+		// ------------ $item_subtotal_tax is total tax amount for item in question
+			unset($Item_Tax_Total);
+			unset($tax_item);
+			if ($SC[order][Ship_Addr]) { // this can't be calculated unless we have shipping info
+				if ($SC[order][$i][Tax_Item] == "category default") {
+					// find category default tax for 1st category this item is in
+					$SC[order][$i][Tax_Item] = get_field_val("Categories","Tax_Items","record_number = ".$SC[order][$i][Category]);
+				}
+				if ($SC[order][$i][Tax_Item] == "yes") $tax_item = 1;
+				if ($tax_item) {
+					$tax_rate = get_tax_rate();
+					if ($tax_rate) $Item_Tax_Total = round($Item_Subtotal * $tax_rate,2);
+					$Item_Tax_Total = number_format($Item_Tax_Total, 2, '.', '');
+					$order_tax_total[] = $Item_Tax_Total;
+					$SC[order][$i][item_tax_total] = $Item_Tax_Total;	// set total tax of item in session
+					}
+				}
+				
+
+		//----------- $item_weight_total is total weight of item plus total weight of options ----------//
+			unset($Item_Weight_Total);
+			if(is_numeric($ord[Weight])) {
+				$Item_Weight_Total = $options_weight_total + $ord[Weight];
+				} else {
+					$Item_Weight_Total = $options_weight_total;
+					}			
+			$SC[order][$i][item_weight_total] = $Item_Weight_Total;	// set total weight of item in session
+
+					
+		// ------------ $weight_subtotal is total of $item_weight_total multiplied by the quantity ordered
+			unset($Item_Weight_Subtotal);
+			$Item_Weight_Subtotal = ($Item_Weight_Total * $ord["qty"]);
+			$SC[order][$i][item_weight_subtotal] = $Item_Weight_Subtotal;	// set subtotal weight of item in session
+			$order_weight_subtotal[] = $Item_Weight_Subtotal;
+	
+//------------------ END OF setting variables for 1 item  -----------------------------------------
+
+}	// end of FOR that loops through each item in cart
+
+	
+
+// ---------------- set variables for totals --------------------------------
+		for($a=0,$Product_Total=0,$Tax_Total=0;$order_subtotal[$a];$a++){
+			$Product_Total = $Product_Total+$order_subtotal[$a];
+			$Tax_Total = $Tax_Total+$order_tax_total[$a];
+			if($Tax_Total) $Tax_Total = number_format($Tax_Total, 2, '.', '');
+			}
+		for($a=0,$Product_Weight_Total=0;isset($order_weight_subtotal[$a]);$a++){
+			$Product_Weight_Total = $Product_Weight_Total+$order_weight_subtotal[$a];
+			}
+			
+		$Product_Total = number_format($Product_Total, 2, '.', '');
+		$Shipping_Total = $SC[order][shipping][cost];
+		if(!$Shipping_Total) $Shipping_Total = " TBD";
+		$Grand_Total = $Product_Total + $Shipping_Total + $Tax_Total;
+		
+		$Grand_Total = number_format($Grand_Total, 2, '.', '');
+
+
+
+		$SC[order][product_total] = $Product_Total;
+		$SC[order][shipping_total] = $Shipping_Total;
+		$SC[order][number_of_items] = $item_count;
+		$SC[order][weight_total] = $Product_Weight_Total;
+		if ($Tax_Total) {
+			$SC[order][tax_total] = $Tax_Total;
+			} else {
+				unset ($SC[order][tax_total]);
+			}
+		$SC[order][grand_total] = $Grand_Total;
+}
+?>

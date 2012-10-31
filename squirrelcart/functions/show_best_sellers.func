@@ -1,0 +1,30 @@
+<?
+// this function created on 5/22/2003 for v1.1.1
+function show_best_sellers($show_qty=10,$template=0){
+global $SC;
+// purpose of function is to display $show_qty number of best selling items, using template specified by $template
+	$best_sellers = get_best_sellers($show_qty);
+	if ($best_sellers) {
+		if (!$template) $template = $SC['templates']['best_sellers'];
+		if ($show_qty > 1) include $SC['templates']['best_sellers_header'];
+
+
+
+		// loop through each best seller
+		for($x=0;$best_sellers[$x];$x++){
+			$best_seller = $best_sellers[$x];
+			$rn = $best_seller['Product_rn'];
+			// set variables for template
+			$GLOBALS['Ranking'] = $x + 1;
+
+			$crn = get_field_val("REL_Products__Categories","Table_2","Table_1 = '$rn'");
+			// $Product_HREF = $SC['cart_www_page']."?crn=$crn&rn=$record_number&action=show_detail";
+			// display each best seller
+			//  include $template;
+			show_product($rn,$template);
+			if ($best_sellers[$x+1]) include $SC['templates']['best_sellers_separator'];
+		}
+		if ($show_qty > 1) include $SC['templates']['best_sellers_footer'];
+	}
+}
+?>

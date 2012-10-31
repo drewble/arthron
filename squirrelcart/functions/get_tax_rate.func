@@ -1,0 +1,9 @@
+<?
+function get_tax_rate () {
+// purpose of function is to return a decimal indicating the percent of sales tax based on state order is being shipped to
+	global $SC;
+	$tax_rate = get_field_val("Sales_Tax","Tax","State = ".$SC['order']['Ship_Addr']['State_or_Province']);
+	$tax_rate = $tax_rate * .01;
+	return $tax_rate;
+	}
+?>

@@ -1,0 +1,40 @@
+<?
+// file modified on 11/22/03 for v1.3.0 - changed method to get so we can hit the back button without refreshing
+
+function change_theme(){
+	global
+	$SC,$change_theme;
+	$options = get_records("Themes","Name,record_number",0,"Name","ASC");
+
+	$select = "<span style='width: 100%;'><form action=\"\"' method=\"get\">Theme: <select class='small_select' onChange='javascript:this.form.submit()' name='change_theme'>";
+	for($i=0;$options[$i];$i++){
+		$option = $options[$i];
+		if ($option[record_number] == $SC[theme_rn]) {
+			 $selected = "SELECTED";
+			 } else {
+			 	unset($selected);
+		}
+		$select = $select."<option $selected value='$option[record_number]'>$option[Name]</option>";
+	}
+	$select = $select."</select></form></span>";	
+
+	if($change_theme){
+		// change theme
+			$SC[theme_rn] = $change_theme;
+		// change theme in user's record
+			set_field_val("Customers","Theme",$change_theme,"record_number = '".$SC[user][record_number]."'");
+			unset($change_theme);
+		// refresh page so theme takes effect on entire page
+			if ($SC['last_page']) {
+				$return_url = $SC['last_page'];
+			} else {
+				$return_url = $SC['www_cart_page'];
+			}
+			print "
+			<head>
+				<meta http-equiv=\"Refresh\" content=\"0; URL=$return_url\">
+			</head>";
+	}
+return $select;
+}
+?>

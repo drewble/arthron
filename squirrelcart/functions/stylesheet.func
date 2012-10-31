@@ -1,0 +1,24 @@
+<?
+// purpose is to display a stylesheet based on theme selected and availability of stylesheet file
+// if file is in the theme selected, it will show it. if it is not, it will use the one in the default "Squirrelcart" theme
+function stylesheet($file){
+global
+$SC;
+
+	if(file_exists("$SC[theme_dir]/$file")) {
+		if ($SC['secure_page']) {
+			print "<link rel='stylesheet' type='text/css' href='$SC[theme_secure_dir]/$file'>\r";
+			} else {	
+				print "<link rel='stylesheet' type='text/css' href='$SC[theme_www_dir]/$file'>\r";
+		}
+		} else {
+			if(file_exists("$SC[default_theme_dir]/$file")) {
+				if($SC['secure_page']) {
+					print "<link rel='stylesheet' type='text/css' href='$SC[default_theme_secure_dir]/$file'>\r";
+					} else {
+					print "<link rel='stylesheet' type='text/css' href='$SC[default_theme_www_dir]/$file'>\r";
+				}
+			}
+	}
+}
+?>

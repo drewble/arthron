@@ -1,0 +1,17 @@
+<?
+// this function was created to fix a problem posting to 2Checkout using the non secure form post method. see
+// the comments in the 2Checkout gateway file for more information.
+//
+// file created on 5/10/2003 for v1.1.1
+function urlencode_all($data) {
+// purpose of functions is to take a regular or multidimensional array, $data, and urlencode every single value in it
+	foreach($data as $key => $value) {
+		if (is_array($data[$key])) {
+			$data[$key] = urlencode_all($data[$key]);
+		} else {
+			$data[$key] = urlencode($data[$key]);
+		}
+	}
+	return $data;
+}
+?>

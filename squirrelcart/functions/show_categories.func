@@ -1,0 +1,163 @@
+<?
+// purpose of this function is to close ALL children of a specified category, and close their children as well, to infinity
+// $parent_rn is the rn of the parent category. all its children will be closed EXCEPT for those specified by $exclude_rn
+// file modified on 01/20/2003 to fix a slow down when collapsing categories in the nav section
+// file modified on 5/20/2003 to handle "New Products" special category
+// file modified on 5/20/2003 for v1.1.1 - to support "Display_In_Content" and "Display_In_Navigation" fields on category records
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+function close_children($parent_rn, $exclude_rn=0){
+	global
+	$SC;
+	$children = get_records("REL_SubCats__Cats","Table_1","Table_2 = '$parent_rn'",0,0);
+// below loop closes all children of this category
+	for($chi=0;$children[$chi];$chi++){
+		$child = $children[$chi];
+		$child_rn = $child['Table_1'];
+		$catname = get_field_val("Categories","Name","record_number = '$child_rn'");
+// if not explicity excluding this category from being closed			
+		if ($child_rn != $exclude_rn) {
+			$SC['cat_state'][$child_rn] = "collapsed";
+//			close_children($child_rn);
+		}
+	}
+}
+
+// purpose of function is to close all categories that are at the same level as the category specified by $open_peer_rn
+function close_peers($open_peer_rn){
+	global
+	$SC;
+	if (!$open_peer_rn) return; 
+	$parent_rn = get_field_val("REL_SubCats__Cats","Table_2","Table_1 = '$open_peer_rn'"); // this will determine the level that this category is at
+	close_children($parent_rn,$open_peer_rn); // closed all related children EXCEPT for one that was clicked open
+}
+
+
+// function returns true if children exist for category specified by $cat_rn
+function children_exist($cat_rn){
+	return get_field_val("REL_SubCats__Cats","Table_2","Table_2 = '$cat_rn'");
+}
+
+// return the number of children in a category
+function count_children($cat_rn){
+	return count(get_records("REL_SubCats__Cats","Table_2","Table_2 = '$cat_rn'"));
+}
+
+
+// return an array of categories belonging to subcategory specified by $parent_cat,
+// where $parent_cat is record number of parent category
+// $select_fields is optional, and can be specified to just get record_number or other fields.
+function get_categories($parent_cat,$select_fields="*"){
+	$order_by = get_field_val("Store_Information","Order_Categories_By");
+	if (!$order_by || $orderby == "null") $order_by = "cats.Name";
+	$order_how = get_field_val("Store_Information","Order_Categories_How");
+	if (!$order_how) $order_how = "ASC";
+	// special New Products category handling
+	$new_cat_position = get_field_val("Categories","Position","record_number = '1'");
+	if ($new_cat_position != "alphabetical") {
+		$exclude_new_cat = "AND cats.record_number != 1";
+		$new_cat_query = "
+		SELECT cats.$select_fields
+		FROM Categories cats, REL_SubCats__Cats rel
+		WHERE rel.Table_2 = $parent_cat
+		AND rel.Table_1 = cats.record_number
+		AND cats.Do_not_display != 1
+		AND cats.record_number = 1
+		ORDER BY $order_by $order_how;";
+		$result = mysql_query ($new_cat_query);
+		while ($row = mysql_fetch_array ($result)) {
+			$new_cats[] = $row;
+		}
+	}
+	$query = "
+	SELECT cats.$select_fields
+	FROM Categories cats, REL_SubCats__Cats rel
+	WHERE rel.Table_2 = $parent_cat
+	AND rel.Table_1 = cats.record_number
+	AND cats.Do_not_display != 1
+	$exclude_new_cat
+	ORDER BY $order_by $order_how;";
+	$result = mysql_query ($query);
+	while ($row = mysql_fetch_array ($result)) {
+		$cats[] = $row;
+	}
+	if ($new_cat_position == "first category") $cats = array_merge($new_cats,$cats);
+	if ($new_cat_position == "last category") $cats = array_merge($cats,$new_cats);
+	return $cats;
+}
+
+
+function get_parent($cat_rn){
+	$parent = get_field_val("REL_SubCats__Cats","Table_2","Table_1 = $cat_rn");
+	return $parent;
+}
+
+// purpose is to show categories in various ways
+// $mode can equal "links"
+//$linkto is the name and or path of file to link to
+//$categories must be an 2 level array. $categories[0] would equal an array. $categories[0]["Name"] would equal the name of the category
+function show_categories($mode,$linkto,$parent_cat=0,$class=0){
+global
+$SC,$crn;
+$last_cat = $SC['clicked_cat'];
+$clicked_cat = $crn;
+$SC['clicked_cat'] = $crn;
+
+if (isset($last_cat)) close_children($last_cat);
+	close_peers($clicked_cat); // close currently open categories that are at the same level as the one just opened
+	if($mode=="links"){
+		if (!$class) $class = "category_collapsed";
+		$categories = get_categories($parent_cat);
+
+// old code below
+		for ($x=0;$categories[$x];$x++){
+			$category = $categories[$x];
+			if ($category['Display_In_Navigation'] != 0) {
+				if ($category["Display_Name"]) {
+					$category_name=$category["Display_Name"];
+				} else {
+					$category_name=$category["Name"];
+				}
+				$cat_rn=$category["record_number"];
+				$action="show";
+				// below line handles returning from a different SSL url back to the cart'ss normal URL
+				if ($SC['secure_page']) $linkto = $SC['www_cart_page'];
+				$href="$linkto?crn=$cat_rn&action=$action&show_products_mode=cat_click$SC[SID]";
+		// section for expansion and collapse of categories
+				if($cat_rn == $clicked_cat && children_exist($cat_rn) && !$SC['dont_expand_categories']) {	// if the category that we are currently on in loop is the same as the one just clicked on, then it might need to be expanded
+					// toggle state section
+					// expanding a category via a click
+					if ($SC['cat_state'][$cat_rn] == "collapsed") {
+						$SC['cat_state'][$cat_rn] = "expanded";
+					} else {
+						// closing a category via a click, and closing all children
+						$SC['cat_state'][$cat_rn] = "collapsed";
+						close_children($cat_rn);
+					}
+				} else {
+					if (!$SC['cat_state'][$cat_rn]) { // if state of category is not already set, use default of collapsed
+						$SC['cat_state'][$cat_rn] = "collapsed";
+					}
+				}
+				$class = "category_".$SC['cat_state'][$cat_rn]; // set class
+				if ($cat_rn == $clicked_cat) $class = "category_selected";
+				if ($SC['cat_state'][$cat_rn] == "expanded" && children_exist($cat_rn) && !$SC['dont_expand_categories']) {
+					print "
+					<div class=\"category_expanded_surround\">
+						<a class=\"category_expanded\" href=\"$href\">
+						<span class=\"category_selected\">$category_name</span>
+					</a>
+					";
+					// $crn is the category that was just clicked on
+					// $SC[last_cat_clicked] is the category that was clicked on before the last click
+					show_categories("links","$SC[www_cart_page]",$cat_rn,"sub_category_link");
+					print "</div>\n";
+					} else {
+						print "<a class=\"$class\" href=\"$href\"><div class=\"$class\">$category_name</div></a>";
+				}			
+			}			
+	// end of expansion and collapse of categories section	
+		}
+	}	
+$SC['last_cat_clicked'] = $crn;
+}
+?>

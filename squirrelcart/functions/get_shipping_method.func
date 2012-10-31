@@ -1,0 +1,545 @@
+<?
+// purpose of file is to compile all the different shipping methods and costs associated, and present them to the customer
+
+// file modified 10/20/02 for v1.0.9 to fix problem with customers getting stuck in a loop between the shipping address and shipping method forms
+// file modified 01/10/03 for v1.1.0 to integrate USPS real time shipping rates
+// file modified 06/16/03 for v1.2  to fix bug for shipping rules applying when order weight is particular value
+// file modified 07/09/03 for v1.2 to integrate UPS real time rate lookups
+// file modified on 7/15/2003 for v1.2 to fix session loss when not using cookies
+// file modified on 11/3/2003 for v1.3 to fix decimal shipping rule problem
+// file modified on 12/9/2003 for v1.4.0 to fix UPS real time rate failure for non US addresses
+
+function get_shipping_method(){
+	global
+	$SC,$HTTP_GET_VARS,$ship_method,$payment_info,$show_cart,$force_ship_rule;
+	if(!$ship_method) {		// if shipping method isn't already chosen or set
+		 //-------------------------- for use in template-------------------------------------
+		$Weight_Total = $SC['order']['weight_total'];
+		$Weight_Symbol = $SC['weight_symbol'];
+		$Submit_Button_Image = get_image("Images","continue_button",0,0,1);
+		$Shipping_Method_Image = get_image("Images","shipping_method");
+		//---------- list select box with shipping methods and prices associated with them ---------//
+		$couriers = get_records("Shipping_Couriers",0,"Enabled = \"1\"","Name",0);
+
+		//-------------------------------------------------------------------------------------------------------------------------------------------------------//
+		//---------------  section to handle USPS and UPS real time rates ----------------------------------------------------//
+		// get info about USPS courier
+		$usps_courier = get_records("Shipping_Couriers","*","record_number = 1");
+		$usps_courier = $usps_courier[0];
+		// get info about UPS courier
+		$ups_courier = get_records("Shipping_Couriers","*","record_number = 2");
+		$ups_courier = $ups_courier[0];
+
+
+		// only check for USPS and or UPS real time rates if all conditions are met
+		$usps_rtr_enabled = ($usps_courier['Enabled'] && $usps_courier['Real_Time_Rates'] && $usps_courier['RTR_Username'] && $usps_courier['RTR_Password'] && $usps_courier['RTR_URL']);
+		$ups_rtr_enabled = ($ups_courier['Enabled'] && $ups_courier['UPS_Agreed'] && $ups_courier['UPS_Real_Time_Rates'] && $ups_courier['UPS_UserId'] && $ups_courier['UPS_Password']);
+		$rules = "";
+		// ------------- determine what the highest priority rule is for enabled rules that apply to enabled couriers ----------------------------//
+		$highest_priority = get_records("Shipping_Rules",0,"Enabled = \"1\"","Priority","DESC");      // gets an array of rules sorted by the highest priority number
+		$query = "SELECT Priority FROM Shipping_Rules r, Shipping_Couriers c WHERE c.Enabled = '1' AND r.Enabled = '1' AND c.record_number = r.Apply_to_Shipping_Type ORDER BY r.Priority DESC LIMIT 0,1";
+		$result = @mysql_query($query);
+		$highest_priority = mysql_fetch_array ($result);
+		$highest_priority = $highest_priority['Priority'];
+		$usps_rtr_priority = get_field_val("Shipping_Couriers","RTR_Shipping_Rule_Priority","record_number = 1");
+		$ups_rtr_priority = get_field_val("Shipping_Couriers","RTR_Shipping_Rule_Priority","record_number = 2");
+		if (!isset($usps_rtr_priority)) $usps_rtr_priority = 1; // in case field is not present
+		if (!isset($ups_rtr_priority)) $usps_rtr_priority = 1; // in case field is not present
+		// determine highest RTR priority
+		$rtr_highest_priority = max($usps_rtr_priority,$ups_rtr_priority);
+		if ($rtr_highest_priority > $highest_priority) {
+			if ($usps_rtr_enabled || $ups_rtr_enabled) {
+				$highest_priority = $rtr_highest_priority;
+			} 
+		}
+		// Step 1 - separate items in $order array into 3 arrays:
+		// $regular_rate_items - items that have "Ship_Using" set to "enabled service"
+		// $forced_rate_items - items that have "Ship_Using" set to "specific service" - and "Postage is" set to "calculated using shipping rules"
+		// $set_rate_items - items that have "Ship_Using" set to "specific service" - and "Postage is" set to "a set amount..."
+		$items = $SC['order'];
+		for($x=0;$items[$x];$x++){
+			$item = $items[$x];
+			$item['session_index'] = $x; // store original index into the item so we can figure out where it was in the session
+			if ($item['Ship_Using'] == 2) { // 2 is for "specific service"
+				// if Postage_Is is set to "calculated using shipping rules"
+				if($item['Postage_Is'] == 0) {
+					$forced_rate_items[] = $item;
+					$ship_using_service = $item['Ship_Service'];
+					// below line isolates these items into an array where the key is the service they will ship with
+					$forced_rate_services[$ship_using_service][] = $item;
+				}
+				// if Postage_Is is set to "set amount..."
+				if($item['Postage_Is'] == 1) {
+					$set_rate_items[] = $item;
+					$ship_using_service = $item['Ship_Service'];
+					// below line isolates these items into an array where the key is the service they will ship with
+					$set_rate_services[$ship_using_service][] = $item;
+					$set_rate_services[$ship_using_service]['postage'] = number_format($set_rate_services[$ship_using_service]['postage'] + ($item['Postage'] * $item['qty']),2);
+				}
+			} else {
+				$regular_rate_items[] = $item;
+// left off here
+				$regular_rate_item_weight = $regular_rate_item_weight + $item['item_weight_subtotal'];
+			}
+		}			
+		// store item split in SESSION for later use
+		$SC['order']['regular_rate_items'] = $regular_rate_items;
+		$SC['order']['forced_rate_items'] = $forced_rate_items;
+		$SC['order']['set_rate_items'] = $set_rate_items;
+		// store set rate services, so we can loop through items by service
+		$SC['order']['set_rate_services'] = $set_rate_services;
+		// pack forced rate items
+		if ($forced_rate_services) $service_rns = array_keys($forced_rate_services);
+		for($x=0;$service_rns[$x];$x++){
+			$service_rn = $service_rns[$x];
+			$service = get_records("Shipping_Methods","*","record_number = $service_rn");
+			$service = $service[0];
+			$weight_limit = $service['Max_Weight_lbs'] + ($service['Max_Weight_oz'] * .0625);
+			$forced_rate_pkgs[$service_rn] = pack_order($forced_rate_services[$service_rn],$weight_limit,0);
+		}
+		if ($usps_rtr_enabled || $ups_rtr_enabled){
+			// Step 2 - get all enabled services into an array
+			// $services[]
+			// get all enabled services for USPS from courier record	
+			if ($usps_rtr_enabled) {
+				$usps_service_names = explode("^^",$usps_courier['Services']);
+				for($x=0;$usps_service_names[$x];$x++){ // loop through service record numbers, and get entire record into $services
+					$service_name = $usps_service_names[$x];
+					$service = get_records("Shipping_Methods","*","Courier = 1 AND Method = '$service_name'");
+					$services[] = $service[0];
+				}
+			}
+			if ($ups_rtr_enabled) {
+				// get all enabled services for UPS from courier record	
+				$ups_service_names = explode("^^",$ups_courier['Services']);
+				for($x=0;$ups_service_names[$x];$x++){ // loop through service record numbers, and get entire record into $services
+					$service_name = $ups_service_names[$x];
+					$service = get_records("Shipping_Methods","*","Courier = 2 AND Method = '$service_name'");
+					$services[] = $service[0];
+				}
+			}
+			// $service now contains all enabled services for USPS AND UPS
+
+			$zip_orig = get_field_val("Store_Information","Postal_Code");
+			$zip_dest = $SC['order']['Ship_Addr']['Postal_Code'];
+			$ship_to_country_rn = $SC['order']['Ship_Addr']['Country'];
+			$ship_to_country_code = get_field_val("Countries","Alpha_2","record_number = '".$SC['order']['Ship_Addr']['Country']."'");
+			$ship_from_country_rn = get_field_val("Store_Information","Country");
+			$ship_from_country_code = get_field_val("Countries","Alpha_2","record_number = '$ship_from_country_rn'");
+			
+			unset($SC['total_forced_postage']);
+			for($x=0;$services[$x];$x++){
+				$service = $services[$x];
+				$service_rn = $service['record_number'];
+				$weight_limit = $service['Max_Weight_lbs'] + ($service['Max_Weight_oz'] * .0625);
+				if ($forced_rate_items) {
+					// loop through each package and get rates
+					for($i=0;$forced_rate_pkgs[$service_rn][$i];$i++){
+						$pkg = $forced_rate_pkgs[$service_rn][$i];
+						// exclude rate lookups if packages don't qualify
+						if ($service_rn == 12 && !$forced_rate_pkgs[$service_rn]['qlfy_media_mail']) $dont_check = 1;
+						if ($service_rn == 10 && !$forced_rate_pkgs[$service_rn]['qlfy_bpm']) $dont_check = 1;
+						if(!$dont_check) {						
+							// determine which rate function to call, based on which courier the service is for
+							if ($service['Courier'] == 1) {	// if courier is USPS
+								// get rate for this package
+								// check rate cache to see if this info was already queried for....saves lots of time
+								if ($SC['order']['shipping']['rate_cache'][$service['Method']][$pkg['weight']]) {
+									$forced_rate_pkgs[$service_rn][$i]['rate'] = $SC['order']['shipping']['rate_cache'][$service['Method']][$pkg['weight']];
+								} else {
+									// rate never obtained.....query USPS
+									$forced_rate_pkgs[$service_rn][$i]['rate'] = usps_domestic_rate($service['Method'],$zip_orig,$zip_dest,$pkg['weight'],"Regular",0,"none",0);
+									// store rate for this look in cache, so if another package with the same weight, for same service, is in order, we will not have to perform query to USPS
+									$SC['order']['shipping']['rate_cache'][$service['Method']][$pkg['weight']] = $forced_rate_pkgs[$service_rn][$i]['rate'];
+								}
+							}
+							if ($service['Courier'] == 2) { // if courier is UPS
+								// get rate for this package
+								// check rate cache to see if this info was already queried for....saves lots of time
+								if ($SC['order']['shipping']['rate_cache'][$service_rn][$pkg['weight']]) {
+									$forced_rate_pkgs[$service_rn][$i]['rate'] = $SC['order']['shipping']['rate_cache'][$service_rn][$pkg['weight']];
+								} else {
+									// rate never obtained.....query USPS
+									$forced_rate_pkgs[$service_rn][$i]['rate'] = get_ups_rate($service_rn,$zip_orig,$zip_dest,$ship_to_country_code,$pkg['weight'],"Regular",0,"none",0,$ship_from_country_code);
+									// store rate for this look in cache, so if another package with the same weight, for same service, is in order, we will not have to perform query to UPS
+									$SC['order']['shipping']['rate_cache'][$service_rn][$pkg['weight']] = $forced_rate_pkgs[$service_rn][$i]['rate'];
+								}
+							}
+							// store service name in pkgs array
+							$forced_rate_pkgs[$service_rn]['rate']['service'] = $forced_rate_pkgs[$service_rn][$i]['rate']['service'];
+							// store total postage for all pkgs in pkgs array
+							$forced_rate_pkgs[$service_rn]['rate']['postage'] = $forced_rate_pkgs[$service_rn]['rate']['postage'] + $forced_rate_pkgs[$service_rn][$i]['rate']['postage'];
+							// store error if any in pkgs array
+							if($forced_rate_pkgs[$service_rn][$i]['rate']['error']) $forced_rate_pkgs[$service_rn]['rate']['error'] = $forced_rate_pkgs[$service_rn][$i]['rate']['error'];
+						}
+						unset($dont_check);
+					}
+					$SC['total_forced_postage'] = $SC['total_forced_postage'] + $forced_rate_pkgs[$service_rn]['rate']['postage'];
+					if ($forced_rate_pkgs[$service_rn]['rate']['postage']) {
+						$forced_rate_pkgs[$service_rn]['rate']['postage'] = number_format($forced_rate_pkgs[$service_rn]['rate']['postage'],2);
+					}
+				}
+
+				if ($regular_rate_items) {
+					$regular_rate_pkgs[$service_rn] = pack_order($regular_rate_items,$weight_limit,0);
+					// loop through each package and get rates
+					for($i=0;$regular_rate_pkgs[$service_rn][$i];$i++){
+						$pkg = $regular_rate_pkgs[$service_rn][$i];
+						// exclude rate lookups if packages don't qualify
+						if ($service_rn == 12 && !$regular_rate_pkgs[$service_rn]['qlfy_media_mail']) $dont_check = 1;
+						if ($service_rn == 10 && !$regular_rate_pkgs[$service_rn]['qlfy_bpm']) $dont_check = 1;
+						if(!$dont_check) {						
+							// determine which rate function to call, based on which courier the service is for
+							if ($service['Courier'] == 1) {	// if courier is USPS
+								// get rate for this package
+								// check rate cache to see if this info was already queried for....saves lots of time
+								if ($SC['order']['shipping']['rate_cache'][$service['Method']][$pkg['weight']]) {
+									$regular_rate_pkgs[$service_rn][$i]['rate'] = $SC['order']['shipping']['rate_cache'][$service['Method']][$pkg['weight']];
+								} else {
+									// rate never obtained.....query USPS
+									$regular_rate_pkgs[$service_rn][$i]['rate'] = usps_domestic_rate($service['Method'],$zip_orig,$zip_dest,$pkg['weight'],"REGULAR",0,"none",0);
+									// store rate for this look in cache, so if another package with the same weight, for same service, is in order, we will not have to perform query to USPS
+									$SC['order']['shipping']['rate_cache'][$service['Method']][$pkg['weight']] = $regular_rate_pkgs[$service_rn][$i]['rate'];
+								}
+							}
+
+							if ($service['Courier'] == 2) { // if courier is UPS
+								// get rate for this package
+								// check rate cache to see if this info was already queried for....saves lots of time
+								if ($SC['order']['shipping']['rate_cache'][$service_rn][$pkg['weight']]) {
+									$regular_rate_pkgs[$service_rn][$i]['rate'] = $SC['order']['shipping']['rate_cache'][$service_rn][$pkg['weight']];
+								} else {
+									// rate never obtained.....query UPS
+									$regular_rate_pkgs[$service_rn][$i]['rate'] = get_ups_rate($service_rn,$zip_orig,$zip_dest,$ship_to_country_code,$pkg['weight'],"REGULAR",0,"none",0,$ship_from_country_code);
+									// store rate for this look in cache, so if another package with the same weight, for same service, is in order, we will not have to perform query to UPS
+									$SC['order']['shipping']['rate_cache'][$service_rn][$pkg['weight']] = $regular_rate_pkgs[$service_rn][$i]['rate'];
+								}
+							}
+							
+							// store service name in pkgs array
+							$regular_rate_pkgs[$service_rn]['rate']['service'] = $regular_rate_pkgs[$service_rn][$i]['rate']['service'];
+							// store total postage for all pkgs in pkgs array
+							$regular_rate_pkgs[$service_rn]['rate']['postage'] = $regular_rate_pkgs[$service_rn]['rate']['postage'] + $regular_rate_pkgs[$service_rn][$i]['rate']['postage'];
+							// store error if any in pkgs array
+							if($regular_rate_pkgs[$service_rn][$i]['rate']['error']) $regular_rate_pkgs[$service_rn]['rate']['error'] = $regular_rate_pkgs[$service_rn][$i]['rate']['error'];
+							// store days in delivery, if available
+							if($regular_rate_pkgs[$service_rn][$i]['rate']['days_to_delivery']) $regular_rate_pkgs[$service_rn]['rate']['days_to_delivery'] = $regular_rate_pkgs[$service_rn][$i]['rate']['days_to_delivery'];
+							if($regular_rate_pkgs[$service_rn][$i]['rate']['delivery_time']) $regular_rate_pkgs[$service_rn]['rate']['delivery_time'] = $regular_rate_pkgs[$service_rn][$i]['rate']['delivery_time'];
+						}
+						unset($dont_check);
+					}
+					if ($regular_rate_pkgs[$service_rn]['rate']['postage']) {
+						$regular_rate_pkgs[$service_rn]['rate']['postage'] = number_format($regular_rate_pkgs[$service_rn]['rate']['postage'],2);
+					}
+				}
+				$SC['order']['shipping']['regular_rate_pkgs'] = $regular_rate_pkgs;
+				$SC['order']['shipping']['forced_rate_pkgs'] = $forced_rate_pkgs;
+
+			}
+			// Step 6. create rules for $regular_rate_pkgs[$service_rn]['rate'] - this will make the shipping rate choices show up for customer
+			for($x=0;$services[$x];$x++){
+				$service = $services[$x];
+				$service_rn = $service['record_number'];
+				// only do this for USPS and UPS right now
+				if ($service['Courier'] == 1) {
+					$courier_name = "U.S.Postal Service";
+					$usps_rate = $regular_rate_pkgs[$service_rn]['rate'];
+					$method = $usps_rate['service'];
+					$ship_cost = $usps_rate['postage'];
+					if($ship_cost && !$usps_rate['error'] && $ship_cost != "0.00"){
+						// create a rule for each USPS rate for later use below
+						$usps_rule['Apply_When'] = "USPS RTR";
+						$usps_rule['Apply_to_Shipping_Type'] = 1;
+						$usps_rule['Apply_to_Shipping_Method'] = get_field_val("Shipping_Methods","record_number","Method = \"".$usps_rate['service']."\" AND Courier = 1");
+						$usps_rule['Shipping_Cost'] = $usps_rate['postage'];
+						$usps_rule['Priority'] = $usps_rtr_priority;
+						$usps_rules[] = $usps_rule;		
+					}
+				}
+				if ($service['Courier'] == 2) {
+					$courier_name = "United Parcel Service";
+					$ups_rate = $regular_rate_pkgs[$service_rn]['rate'];
+					$method = $ups_rate['service'];
+					$ship_cost = $ups_rate['postage'];
+					if($ship_cost && !$ups_rate['error'] && $ship_cost != "0.00"){
+						// create a rule for each USPS rate for later use below
+						$ups_rule['Apply_When'] = "UPS RTR";
+						$ups_rule['Apply_to_Shipping_Type'] = 2;
+						$ups_rule['Apply_to_Shipping_Method'] = get_field_val("Shipping_Methods","record_number","Method = \"".$ups_rate['service']."\" AND Courier = 2");
+						$ups_rule['Shipping_Cost'] = $ups_rate['postage'];
+						$ups_rule['Priority'] = $ups_rtr_priority;
+						$ups_rule['days_to_delivery'] = $ups_rate['days_to_delivery'];
+						$ups_rule['delivery_time'] = $ups_rate['delivery_time'];
+						$ups_rules[] = $ups_rule;		
+					}
+				}
+			}
+		} 
+		//--------------- end of section to handle USPS and UPS real time rates -------------------------------------------------//
+		if ($set_rate_items) {
+			// loop through each item and get rates
+			for($i=0;$set_rate_items[$i];$i++){
+				$item = $set_rate_items[$i];
+				$total_set_postage = $total_set_postage + ($item['Postage'] * $item['qty']);
+			}
+			$total_set_postage = number_format($total_set_postage,2);
+// remarked out for v1.1.1 weight based rule fix
+//			$courier_rn = get_field_val("Shipping_Methods","Courier","record_number = ".$item['Ship_Service']);
+//			$usps_rule['Apply_When'] = "set amount";
+//			$usps_rule['Apply_to_Shipping_Type'] = $courier_rn;
+//			$usps_rule['Apply_to_Shipping_Method'] = $item['Ship_Service'];
+//			$usps_rule['Shipping_Cost'] = $item['Postage'];
+//			$usps_rule['Priority'] = 2;
+//			$usps_rules[] = $usps_rule;
+//			unset($usps_rule);
+			$SC['total_set_postage'] = $total_set_postage;
+		}
+		for($e=0;!$stop_looping;0){			// 1st FOR statement. this loop is to loop through priorities, from highest to lowest, until a rule applies
+			// get all enabled rules for enabled couriers ONLY, starting at highest priority
+			$rules = get_records("Shipping_Rules",0,"Priority = \"$highest_priority\" AND Enabled = \"1\"","Priority","DESC");
+			// add USPS and UPS real time rate rules if priority of them is equal to the highest priority
+			if ($usps_rtr_priority == $highest_priority) $rules = array_merge($rules, $usps_rules);
+			if ($ups_rtr_priority == $highest_priority) $rules = array_merge($rules, $ups_rules);
+
+			unset($new_rules);
+			for($x=0;$couriers[$x];$x++){			// loop through each enabled courier
+				for($a=0;$rules[$a];$a++){				// loop through each enabled rule
+					if ($rules[$a]['Apply_to_Shipping_Type'] == $couriers[$x]['record_number']) $new_rules[] = $rules[$a];
+				}
+			}
+			$rules == $new_rules;			// rules now equals all enabled rules of the highest priority
+			for($i=0;$rules[$i];$i++){					// 2nd FOR statement
+				$rule = $rules[$i];
+				// ------- determine whether rule applies -----------------------------//
+				if($rule['Apply_When'] == 1) $check = $SC['order']['product_total'];
+// change made on 6/16 to fix shipping rule bug....rules that are weight based need to compare the weight of all items that
+// are set to "enabled services" and exclude items set to "a specific service"
+//				if($rule['Apply_When'] == 2) $check = $SC['order']['weight_total'];
+				if($rule['Apply_When'] == 2) $check = $regular_rate_item_weight;
+				if($rule['Apply_When'] == 3) $check = $SC['order']['number_of_items'];
+				if($rule['Apply_When'] == 4) $check = $SC['user']['Privelage_Level'];
+				// added to fix missing country based rule
+				if($rule['Apply_When'] == 5) {
+					$check = $SC['order']['Ship_Addr']['Country'];
+					$rule['Value'] = $rule['Country_Value'];
+				}
+				// added to fix missing state based rule
+				if($rule['Apply_When'] == 6) {
+					$check = $SC['order']['Ship_Addr']['State_or_Province'];
+					$rule['Value'] = $rule['State_Value'];
+				}
+				// added by request and to support citys
+				if($rule['Apply_When'] == 7) $check = $SC['order']['Ship_Addr']['City'];
+				
+				unset($apply_rule);
+				if($rule['Operator'] == 1) {
+					if($check < $rule['Value']) $apply_rule = 1;
+				}
+				if($rule['Operator'] == 2) {
+					if($check > $rule['Value']) $apply_rule = 1;
+				}
+				if($rule['Operator'] == 3) {
+					if($check <= $rule['Value']) $apply_rule = 1;
+				}
+				if($rule['Operator'] == 4) {
+					if($check >= $rule['Value']) $apply_rule = 1;
+				}
+				if($rule['Operator'] == 5) {
+					if($check == $rule['Value']) $apply_rule = 1;
+				}
+				if($rule['Operator'] == 6) {
+					if($check <> $rule['Value']) $apply_rule = 1;
+				}
+				if($rule['Apply_When'] == "USPS RTR") $apply_rule = 1;
+				if($rule['Apply_When'] == "UPS RTR") $apply_rule = 1;
+				if($rule['Apply_When'] == "set amount") $apply_rule = 1;
+				// ----------- finished determining if rule applies ------------------------//
+				if($apply_rule) {
+					// -------- set some variables for later --------------------//
+					$courier_name = get_field_val("Shipping_Couriers","Name","record_number = \"$rule[Apply_to_Shipping_Type]\"");
+					$method = get_field_val("Shipping_Methods","Method","record_number = \"$rule[Apply_to_Shipping_Method]\"");
+					$ship_method_rn = $rule['Apply_to_Shipping_Method'];
+					if(strstr($rule['Shipping_Cost'],"%")){    // if shipping rule contains a % sign, then calculate shipping as a percent
+					// ----- if here, cost for shipping is a percentage ---------//
+						$ship_percent = str_replace("%","",$rule['Shipping_Cost']); // strip out the percent sign
+						$ship_percent = trim($ship_percent); // remove whitespace
+						$ship_percent_dec = $ship_percent / 100;
+						$ship_cost = $SC['order']['product_total'] * $ship_percent_dec;
+						$ship_cost = number_format($ship_cost,2);
+					} else {
+						// ----- if here, cost for shipping is a fixed amount ---------//
+						$ship_cost = $rule['Shipping_Cost'];
+						$ship_cost = trim($ship_cost);
+					}
+					// set variables for use in form
+					$ship_option[] = "$courier_name^^$method^^$ship_cost^^$ship_method_rn";	// value of this shipping method
+					$courier_number[] = $rule['Apply_to_Shipping_Type'];
+					// make sure not to include UPS courier name in front of services, because it is already there
+					if ($rule['Apply_to_Shipping_Type'] == 2) {
+						$UPS_present = 1; // tells us that UPS is an enabled, applicable rule, so we can "not compete"....see $dont_compete variable for more info
+						if ($rule['days_to_delivery'] == 1) $days = "1 day";
+						if ($rule['days_to_delivery'] > 1) $days = $rule['days_to_delivery']." day";
+						$time = $rule['delivery_time'];
+						if ($days) $delivery = "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;($days delivery";
+						if ($time) $delivery .=  " by $time";
+						if ($delivery) $delivery .= ")";
+						$ship_display[] = "$method - $SC[currency]$ship_cost$delivery";	// what to display to user for a choice
+					} else {					
+						$Non_UPS_present = 1; // tells us that a courier that is not UPS is enabled, and has an applicable rule, so we can "not compete"....see $dont_compete variable for more info
+						$ship_display[] = "$courier_name $method - $SC[currency]$ship_cost";	// what to display to user for a choice
+					}
+				} // end of IF statement
+			} // end of 2nd FOR statement
+			if($ship_option) $stop_looping = 1; 				// if here, and $ship_option is set, than we found an applicable rule. stop looping. otherwise, loop back to top and check lesser priority
+			if ($highest_priority == 0) $stop_looping = 1; 	// in case no rules at all apply, stop looping!
+			$highest_priority = $highest_priority - 1;		// get next highest priority
+		}		// end of 1st FOR statement
+		// --- if their is more than one choice for shipping ($ship_option[0], and $ship_option[1]) AND there are items that are not forced rate-------
+		//---------------------------- start shipping method page and form  ---------------------------//
+		// determine whether we can display all rates for all couriers on same page or not
+		if ($UPS_present && $Non_UPS_present) $dont_compete = 1;
+		if ($dont_compete && !$HTTP_GET_VARS['show_courier']) $Dont_Compete = 1; // for use in template
+		if($ship_option[1] && $regular_rate_items) {			
+			$Form_Action = $SC['secure_cart_page'];
+			include $SC['templates']['ship_method_header'];
+			if($set_rate_items) {
+				include $SC['templates']['ship_method_forced_header'];
+				$service_rns = array_keys($set_rate_services);
+				for($x=0;$service_rns[$x];$x++){
+					$service_rn = $service_rns[$x];
+					// replace courier record number with name for template
+					$courier_rn = get_field_val("Shipping_Methods","Courier","record_number = $service_rn");
+					$Courier = get_field_val("Shipping_Couriers","Name","record_number = $courier_rn");
+					$Method = get_field_val("Shipping_Methods","Method","record_number = $service_rn");
+					$Postage = $set_rate_services[$service_rn]['postage'];
+					$Currency_Symbol = $SC['currency'];
+					include $SC['templates']['ship_method_forced_service'];
+					$items = $set_rate_services[$service_rn];
+					for($i=0;$items[$i];$i++){
+						$Quantity = $item['qty'];
+						$Name = $item['Name'];
+						include $SC['templates']['ship_method_forced_items'];
+					}
+				}
+				if(!$forced_rate_pkgs) include $SC['templates']['ship_method_forced_footer'];
+			}
+			if ($forced_rate_pkgs) {
+				$services = array_keys($forced_rate_pkgs);
+				include $SC['templates']['ship_method_forced_header'];
+				for($x=0;$services[$x];$x++){
+					$services_rn = $services[$x];
+					$service = get_records("Shipping_Methods","*","record_number = $services_rn");
+					$service = $service[0];
+					// for template file ship_method_forced.php, set all fields in service record as variables
+					$field_names = array_keys($service);
+					for ($i=1;$field_names[$i];$i++){
+						$field_name = $field_names[$i];
+						$$field_name = $service[$field_name];
+					}
+					// replace courier record number with name for template
+					$Courier = get_field_val("Shipping_Couriers","Name","record_number = '".$service['Courier']."'");
+					$Postage = $forced_rate_pkgs[$services_rn]['rate']['postage'];
+					$Currency_Symbol = $SC['currency'];
+					include $SC['templates']['ship_method_forced_service'];
+					$items = $forced_rate_pkgs[$services_rn]['items'];
+					// loop through each item in the set of pkgs
+					for($i=0;$items[$i];$i++){
+						$item = $items[$i];
+						$field_names = get_fields($SC['db'],"Products");
+						// set each field name as a variable for template file
+						for ($a=0;$field_names[$a];$a++){
+							$field_name = $field_names[$a];
+							$$field_name = $item[$field_name];
+						}
+						$Quantity = $item['qty'];
+						include $SC['templates']['ship_method_forced_items'];
+					}
+					if(!$services[$x+1]) { // if on last loop
+						include $SC['templates']['ship_method_forced_footer'];
+						// loop through each remaining regular rate item
+						$items = $regular_rate_items;
+						for($i=0;$items[$i];$i++){
+							$item = $items[$i];
+							$field_names = get_fields($SC['db'],"Products");
+							// set each field name as a variable for template file
+							for ($a=0;$field_names[$a];$a++){
+								$field_name = $field_names[$a];
+								$$field_name = $item[$field_name];
+							}
+							$Quantity = $item['qty'];
+							include $SC['templates']['ship_method_forced_items'];
+						}
+					}					
+				}	
+			}
+
+			// if dont_compete is set, we can't show rates on same page for different couriers, so show courier links instead
+			if ($dont_compete && !$HTTP_GET_VARS['show_courier']) {
+				for($x=0;isset($courier_number[$x]);$x++){
+					$courier_rn = $courier_number[$x];
+					if ($courier_rn != $last_courier_rn) {
+						$Courier_Logo = @get_image("Shipping_Couriers",0,"Logo_Image","record_number = '".$courier_number[$x]."'");
+						$Courier_Name = get_field_val("Shipping_Couriers","Name","record_number = '$courier_rn'");
+						if ($SC['secure_page']) {
+							$root = $SC['secure_cart_page'];
+						} else {
+							$root = $SC['www_cart_page'];
+						}
+						$Show_Courier_HREF = "$root?shipping_method=1&show_courier=$courier_rn$SC[SID]";
+						include $SC['templates']['ship_method_courier_selection'];												
+						$last_courier_rn = $courier_rn;
+					}
+				}
+			} else {
+				// OK to show all rates.....loop through 'em, and display 'em
+				for($x=0,$a=0;$ship_option[$x];$x++){
+					// section below will only display the choices for the courier specified in the $show_courier variable passed via the URL, if show_courier is set
+					// otherwise, it will show all rates, when $dont_compete is not set
+					// main reason for implementing this is UPS does not allow displaying their rates on same page as other courier's rates
+					if (!$HTTP_GET_VARS['show_courier'] || $courier_number[$x] == $HTTP_GET_VARS['show_courier']) {
+						// if the record number of this courier is different from the last, then we are now on a different courier, and should start a new table
+						if ($courier_number[$x] != $courier_number[$x-1]) {
+							$Courier_Logo = @get_image("Shipping_Couriers",0,"Logo_Image","record_number = '".$courier_number[$x]."'");
+							include $SC['templates']['ship_method_courier_header'];
+						}
+						$Option_Value = $ship_option[$x];
+						$Option_Number = $a++;
+						$Option_Display = $ship_display[$x];
+						include $SC['templates']['ship_method_courier_rate'];
+						if ($courier_number[$x] != $courier_number[$x+1]) {
+							include $SC['templates']['ship_method_courier_footer'];
+							if ($courier_number[$x+1]) include $SC['templates']['ship_method_courier_separator'];
+						}
+					}
+				}
+			}			
+			if (!$dont_compete || $HTTP_GET_VARS['show_courier']) include $SC['templates']['ship_method_footer'];
+		} else {
+			//-----only one shipping rule applies, no choice for shipping. use default, which is first option
+			$ship_method = $ship_option[0];
+			$force_ship_rule=1; // this fixes a problem where the cart wouldn't show IF one shipping rule was forced
+			$SC['force_ship_rule'] = 1;
+		}
+	} // end of IF statement from very top of function
+	if ($ship_method) {
+		// -------------- section for handling posted data. --------------------//
+		$ship_array = explode("^^",$ship_method);
+		$SC['order']['shipping']['courier'] = $ship_array[0];
+		$SC['order']['shipping']['method'] = $ship_array[1];
+		$SC['order']['shipping']['method_rn'] = $ship_array[3];
+	
+		// temporary fix to remove the cost calculated by the default rule when there are no regular rate items
+		if (($SC['order']['shipping']['forced_rate_pkgs'] || $set_rate_items) && !$SC['order']['shipping']['regular_rate_pkgs']) unset($ship_array[2]);
+		// remove all regular_rate_pkgs schemes from SESSION except for what customer chose for shipping 
+		if ($SC['order']['shipping']['regular_rate_pkgs']) {
+			$new_regular_rate_pkgs[$ship_array[3]] = 	$SC['order']['shipping']['regular_rate_pkgs'][$ship_array[3]];
+			$SC['order']['shipping']['regular_rate_pkgs'] = $new_regular_rate_pkgs;
+		}
+		$SC['order']['shipping']['cost'] = number_format($ship_array[2] + $SC['total_forced_postage'] + $SC['total_set_postage'],2);
+		// store shipping total for regular packages only
+		$SC['order']['shipping']['regular_rate_pkgs']['postage'] = $ship_array[2];
+		process_cart();
+		$show_cart=1;
+	}
+}
+?>

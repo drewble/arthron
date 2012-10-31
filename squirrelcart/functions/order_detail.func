@@ -1,0 +1,142 @@
+<?
+// file added on 5/26/2003 for v1.1.0 to display order detail to customer for a previously submitted order
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+// file modified on 10/23/2003 for v1.3.0 to fix empty text option popup when viewing orders in DB
+function order_detail($order_rn) {
+	global $SC,$on_admin_page;	
+
+	$Order_Detail_Image = get_image("Images","order_detail");
+
+	if ($on_admin_page) print "<table width=\"700\"><tr><td>";
+	include $SC['templates']['order_detail_header'];
+
+	// get info from order into variable
+	$order = get_records("Orders","*","record_number = '$order_rn'");
+	$order = $order[0];
+	// get fields in Orders table
+	$field_names = get_fields($SC['db'],"Orders");
+	// loop through each field name
+	for ($x=0;$field_names[$x];$x++){
+		$field_name = $field_names[$x];
+		// set each field as a variable for use in templates
+		$$field_name = $order[$field_name];
+	}
+	// for template use
+	$Bill_State_Abbrev = get_field_val("States","Abbreviation","record_number = '$Bill_State_or_Province'");
+	$Bill_Country_Abbrev = get_field_val("Countries","Alpha_2","record_number = '$Bill_Country'");
+	$Bill_Country_Name = get_field_val("Countries","Name","record_number = '$Bill_Country'");
+	$Ship_State_Abbrev = get_field_val("States","Abbreviation","record_number = '$Ship_State_or_Province'");
+	$Ship_Country_Abbrev = get_field_val("Countries","Alpha_2","record_number = '$Ship_Country'");
+	$Ship_Country_Name = get_field_val("Countries","Name","record_number = '$Ship_Country'");
+	
+ 	include $SC['templates']['order_detail_addresses']; // shipping and billing address template
+
+	// display status info for this order
+ 	include $SC['templates']['order_detail_status_header']; // status header template
+	$statuses = get_records("REL_Order__Status","Table_2, Record_Date", "Table_1 = '$order_rn'","Record_Date","ASC");
+	// loop through statuses of this order
+	$order_date = $order['Order_Date'];
+	$Status_Date = date("m/d/Y", strtotime($order_date));
+	$Status_Time = date("h:i A",strtotime($order_date));
+	$Status = "Order Placed";
+	if (count($statuses) > 1 && $TD_Class == "stat_td") {
+		$TD_Class = "stat_td_alternate";
+	} else {
+		$TD_Class = "stat_td";
+	}
+ 	include $SC['templates']['order_detail_status']; // status template
+	for ($x=0;$statuses[$x];$x++){
+		$status = $statuses[$x];
+		$Status_Date = date("m/d/Y", strtotime($status['Record_Date']));
+		$Status_Time = date("h:i A",strtotime($status['Record_Date']));
+		$status_rn = $status['Table_2'];
+		$Status = get_field_val("Order_Status","Status","record_number = '$status_rn'");
+		$status_desc = get_field_val("Order_Status","Description","record_number = '$status_rn'");
+		if ($Status && $status_desc) $Status = Popup_Window($SC['cart_www_root']."/order_status_popup.php?status=$status_rn", $Status, "200", "100", "yes", "yes");
+		if (count($statuses) > 1 && $TD_Class == "stat_td") {
+			$TD_Class = "stat_td_alternate";
+		} else {
+			$TD_Class = "stat_td";
+		}
+	 	include $SC['templates']['order_detail_status']; // status template
+	}
+ 	include $SC['templates']['order_detail_status_footer']; // status footer template
+	include $SC['templates']['order_detail_product_header'];
+
+	$items = get_records("Ordered_Items","*","Order_rn = '$order_rn'");
+	$field_names = get_fields($SC['db'],"Ordered_Items");
+	$prod_field_names = get_fields($SC['db'],"Products");
+	for($x=0;$items[$x];$x++){
+		$item = $items[$x];
+		// loop through all fields in Ordered_Items table, and set as variables for use in template
+		for ($i=0;$field_names[$i];$i++){
+			$field_name = $field_names[$i];
+			$$field_name = $item[$field_name];
+		}
+		// if item still exists in Products table, get info, and store in variables
+		$db_item = get_records("Products","*","record_number = '".$item['Item_rn']."'");
+		$db_item = $db_item[0];
+		if ($db_item) {		
+			for ($i=0;$prod_field_names[$i];$i++){
+				$prod_field_name = $prod_field_names[$i];
+				$$prod_field_name = $db_item[$prod_field_name];
+			//	print $prod_field_name.": ".$$prod_field_name."<---------------<br>";
+			}
+		}
+		$options = unserialize($item['Options']);
+		// loop through each option
+		unset ($Options);
+		unset ($Options_Price);
+		for ($f=0;$options[$f];$f++){
+			$option = explode("^^",$options[$f]);
+			$option_type = get_field_val("Product_Options","Option_Type","Name = '".$option[0]."'");
+			if ($option_type == "Textarea Input" || $option_type == "Text Input") {
+				$popup_width = get_field_val("Product_Options","Checkout_Popup_Width","Name = '".$option[0]."'");
+				$popup_height =get_field_val("Product_Options","Checkout_Popup_Height","Name = '".$option[0]."'");
+				$popup_scrollbars = get_field_val("Product_Options","Checkout_Popup_Scrollbars","Name = '".$option[0]."'");
+				$popup_resizable = get_field_val("Product_Options","Checkout_Popup_Resizable","Name = '".$option[0]."'");
+				if (!$popup_width) $popup_width = "100";
+				if (!$popup_height) $popup_height = "100";
+				$item_rn = $item['record_number'] ; //record number of this item in ordered_items table
+				$option_detail_link = Popup_Window($SC['cart_www_root']."/option_text_popup.php?mode=existing&item_rn=$item_rn&option=$f",$option[0],$popup_width,$popup_height,$popup_scrollbars,$popup_resizable);
+				$Options = $Options.$option_detail_link.": <br>";
+			} else {
+				$Options = $Options.$option[0].": ".$option[1]."<br>";
+			}
+			$options_total = $options_total + $option[2];									// total price of options
+			if(is_numeric($option[3])) $options_weight_total = $options_weight_total + $option[3];		// total weight of options
+			if($option[2] == "----" || $option[2] == "") {
+				$currency = "" ;
+			} else {
+					$currency = $Currency_Sym;
+			}
+			$Options_Price = $Options_Price.$SC['currency'].$option[2]."<br>\r";
+		}
+		// more variables for template
+		if (!$Brief_Description) $Brief_Description = $Description;
+		if($SC['secure_page']) {
+			$root = $SC['site_secure_root'];
+		} else {
+			$root = $SC['site_www_root'];
+		}
+		$missing_thumbnail_image = get_field_val("Store_Information","Missing_Thumbnail_Image");
+		if (!$Thumbnail_Image || !is_file("$SC[site_isp_root]/$SC[image_folder]/$Thumbnail_Image")) $Thumbnail_Image = $missing_thumbnail_image;
+		$Thumbnail_Image = "$root/$SC[image_folder]/$Thumbnail_Image";
+		
+		// ------------ $item_total is total of all options and base price for one item
+		$Item_Total = $item['Item_Total'];
+		// ------------ $item_subtotal is total of $item_total multiplied by the quantity ordered
+		$Item_Subtotal = $item['Item_Subtotal'];
+		$Base_Price = $SC['currency'].$Base_Price;
+		$Currency_Sym = $SC['currency'];
+		$crn = get_field_val("REL_Products__Categories","Table_2","Table_1 = '".$db_item['record_number']."'");
+		$Product_Link = $SC['www_cart_page']."?crn=$crn&rn=".$db_item['record_number']."&action=show_detail$SC[SID]";
+		include $SC['templates']['order_detail_item'];
+	}
+	// link to display more info about shipping method
+	$Shipping_Details_HREF = $SC['cart_www_root']."/shipping_info_popup.php?order_rn=$order_rn";
+	$Shipping_Details_Link = Popup_Window($Shipping_Details_HREF,"Shipping Total",300,200,"yes","yes");
+	include $SC['templates']['order_detail_footer'];
+	if ($on_admin_page) print "</td></tr></table>";
+}
+?>

@@ -1,0 +1,169 @@
+<?
+/*
+Copyright Lighthouse Development, 2002. All rights reserved.
+Description:
+	function below will connect to USPS using CURL and return an array like the following:
+		$array[] = each service requested will be stored as a sep. array
+		$array[]['service'] = name of service rate applies to
+		$array[]['postage'] = value of postage
+		$array[]['error'] = error returned, if any.
+	amount in US dollars for shipping rates for a single package,
+	based on the parameters passed to it. Function requires the EXPAT add on for PHP in order to handle XML output returned from USPS
+	see "Domestic Rates Calculator API" PDF file at http://uspswebtools.com for detailed information
+Parameters:
+	$service - string containing the type of service requested - values can be "Express, First Class, Priority, Parcel, BPM, Library, Media, or all (which will check all enabled services on USPS courier record"
+	$zip_orig - zip code where package is coming from
+	$zip_dest - zip code package is shipping to
+	$weight - weight in lbs of package. can include decimal amounts, like 10.5, or 10.78. function will calculate pounds and ounces from this.
+	$size - string - can be "Regular, Large, or Oversize". see "Domestic Rates Calculator API" PDF file for more info
+	$pkg_id - number identifying package. defaults to 0.
+	$container - see PDF.
+	$test - if set to 1, will output the result that was obtained from ssl_connect
+Error number explanations from USPS:
+	-2147219453		"Invalid ZIP Code for Sender"	
+	2147219452		"Invalid ZIP Code for Receiver"
+	-2147219440		"Invalid package size for Parcel Post"
+	2147219493		"Invalid Container for Priority Mail"
+	-2147219500		"Invalid Weight for Express Mail and Priority Mail"
+	-2147219497		"Invalid Weight for Parcel Post"
+	-2147219499		"Invalid Weight for Pounds" (over 70 lbs is invalid for a package)	
+Testing URL: http://testing.shippingapis.com/ShippingAPITest.dll
+Production URL: http://production.shippingapis.com/ShippingAPI.dll
+*/
+function usps_domestic_rate($service,$zip_orig,$zip_dest,$weight,$size,$pkg_id=0,$container="None",$test=0) {
+global $SC;
+	// ensure that ZIP code is only 5 digits (remove additional ZIP + 5 digits)
+	$zip_orig = substr(trim($zip_orig),0,5);
+	$courier = get_records("Shipping_Couriers","*","record_number = 1");
+	$courier = $courier[0];
+	$server_url = $courier['RTR_URL'];
+	$userid = $courier['RTR_Username'];
+	$password = $courier['RTR_Password'];
+	// calculate ounces and lbs, if weight is a decimal, like 10.0625 would be 10lbs, 1oz
+		if (strstr ($weight,".")) {
+			$weight = explode(".",$weight);
+			$lbs = $weight[0];
+			$ounces = ".".$weight[1];
+			$ounces = round($ounces * 16);
+		} else {
+			$lbs = $weight;
+			$ounces=0;
+		}
+
+
+	// set service names into an array based on $service value
+		if (strtolower($service) == "all") {
+		// get all enabled services for USPS from courier record	
+			$services = explode("^^",$courier['Services']);
+		} else {
+			$services[0] = $service;
+		}		
+
+	// loop through services, and format them so they fit requirements of USPS rate API
+		/*
+		 service names according to Squirrelcart DB
+					Priority Mail
+					Global Mail
+					Parcel Post
+					First-Class Mail
+					Express Mail
+					Bound Printed Matter
+					Library Mail
+					Media Mail
+		 acceptable service names for the USPS domestic rate API
+					Priority
+					Parcel
+					First Class
+					Express
+					BPM
+					Library
+					Media
+		*/
+	// loop through enabled services, and set the "service" name correctly to pass to USPS
+	for($x=0;$services[$x];$x++){
+		$new_service = $services[$x];
+		$new_service = str_replace(" Mail", "", $new_service);
+		$new_service = str_replace("Bound Printed Matter","BPM",$new_service);
+		$new_service = str_replace("Parcel Post","Parcel",$new_service);
+		$new_service = str_replace("-"," ",$new_service);
+		if ($new_service == "Global") unset($new_service);
+		// remove Media Mail and BPM if package does not qualify for it
+//		if ($new_service == "Media" && !$SC['order']['pkgs']['qlfy_media_mail']) unset($new_service);
+//		if ($new_service == "BPM" && !$SC['order']['pkgs']['qlfy_bpm']) unset($new_service);
+		if($new_service) {
+			$new_services[] = $new_service;
+			$full_service_names[] = $services[$x];
+		}
+	}
+	$services = $new_services;
+	unset($new_services);
+
+
+	// loop through enabled services, and get rates
+	for($x=0;$services[$x];$x++){
+		$service = $services[$x];
+	// set machinable to true for parcel post or media mail. USPS says machinable is only required for parcel post, but it seems to be required for media mail also
+		if ($service == "Parcel" || $service == "Media" || $service == "BPM") {
+			$machinable = "True" ; 
+		} else {
+			unset($machinable);
+		};
+		
+	// set data to be posted to URL
+		$data['API'] = "Rate";
+		$data['XML'] = "
+		<RateRequest USERID=\"$userid\" PASSWORD=\"$password\">
+			<Package ID=\"0\">
+				<Service>$service</Service>
+				<ZipOrigination>$zip_orig</ZipOrigination>
+				<ZipDestination>$zip_dest</ZipDestination>
+				<Pounds>$lbs</Pounds>
+				<Ounces>$ounces</Ounces>
+				<Container>$container</Container>
+				<Size>$size</Size>
+				<Machinable>$machinable</Machinable>
+			</Package>
+		</RateRequest>";
+	// connect to USPS server, and get resulting page
+		$result=ssl_connect($server_url,$data,0,0);
+		if($test) {
+			print "<br><b>XML data sent to USPS was:</b><br>".nl2br(htmlspecialchars($data['XML']))."<br>";
+			print "<br><b>result from USPS was:</b><br>".nl2br(htmlspecialchars($result))."<br>";
+		}
+
+	// find starting position of XML indicator in the result, which looks like:<?xml version='1.0'
+		$xml_start = strpos($result,"<?xml");
+		if(!$xml_start) $xml_start = strpos($result,"<? xml");
+	// remove all text above XML opening tag, so we can parse it
+		$xml_result=substr($result,$xml_start);
+	// parse XML result, and set $index and $vals. $index stores keys in $vals corresponding to the name of the tag you refer to as the key
+		$p = xml_parser_create();
+		xml_parse_into_struct($p,$xml_result,$vals,$index);
+		xml_parser_free($p);
+	/* for testing
+		echo "Index array\n";
+		print_r($index);
+		echo "\nVals array\n";
+		print_r($vals);
+	*/
+	// below finds index of the value we need in the $vals array
+		$postage_i = $index['POSTAGE'][0];
+		$rate['postage'] = $vals[$postage_i]['value'];
+		$rate['service'] = $full_service_names[$x];
+		if($index['ERROR']) {
+			$error_num_i = $index['NUMBER'][0];
+			$rate['error']['number'] = $vals[$error_num_i]['value'];
+			$error_desc_i = $index['DESCRIPTION'][0];
+			$rate['error']['description'] = $vals[$error_desc_i]['value'];
+		}
+		$rates[] = $rate;
+		unset($rate);
+		}
+		if (!$rates[1]) {
+			return $rates[0];
+		} else {
+			return $rates;
+		}
+
+}
+?>

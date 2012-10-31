@@ -1,0 +1,15 @@
+<?
+// purpose of function is to retrieve arrays from, and update arrays to a MySQL DB
+// $mode - use either "explode" or "implode" for explode, and 2 for implode
+// $array is array to work with
+function array_to_sql($mode,$array){
+	if ($mode == "explode"){
+		$array_exp = explode("^^", $array);
+		return $array_exp;
+	}
+	if ($mode == "implode"){
+		$array_imp = implode("^^",$array);
+		return $array_imp;
+	}
+}
+?>

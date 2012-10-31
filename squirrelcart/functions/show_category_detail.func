@@ -1,0 +1,94 @@
+<?
+// modified on 05/15/2003 to fix SSL image path issue
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+//
+// purpose is to show details for a subcategory by using the show_category_detail function
+// with a different template
+function show_subcategory_detail($parent_rn){
+global
+$SC;
+	$SubCategory_Count = count_children($parent_rn);
+	if($SubCategory_Count == 1) {
+		$SubCategory_Word = "subcategory";
+		} else {
+			$SubCategory_Word = "subcategories";
+		}		
+	$subcategories = get_categories($parent_rn,"record_number");
+	include $SC[templates][show_subcategory_detail_header];
+	for($x=0;$subcategories[$x];$x++){
+		$subcat = $subcategories[$x];
+		$subcat_rn = $subcat[record_number];
+		$template = $SC[templates][show_subcategory_detail];
+		show_category_detail($subcat_rn,"single",$template,1);
+	}
+	include $SC[templates][show_subcategory_detail_footer];
+}
+
+function show_category_detail($rn,$mode="single",$template=0,$dont_show_subs=0){
+global
+$site_isp_root,$SC,$cart_isp_root,$db,$search_mode,$show_products_mode;
+
+// was here
+
+	if (!$template) $template = $SC[templates][show_category_detail];
+	if (!$search_mode) {
+	// determine whether or not this option is turned on or not
+		$show_cat_detail = get_records("Admin_Options",0,"Name = \"Show Category Detail\"",0,0);
+		$show_cat_detail = $show_cat_detail[0]["Value"];
+		if ($show_cat_detail) {
+	//--------------get record for category ----------------------------------//
+			$cat_record = get_records("Categories",0,"record_number = \"$rn\"",0,0);
+			$cat_record = $cat_record[0];
+	//---------------- set variables for use in template ---------------------//
+			if(security_level("Store Admin")) $Admin_Link = "<a class=\"small_link\" href=\"$SC[www_admin_page]?edit_records=1&selected_record_number=$rn&table=Categories$SC[SID]\">(edit)</a>";
+			$field_names = get_fields($db,"Categories"); // get list of field names for categories table
+			$field_names = $field_names["sorted"];
+			for($x=0;$field_names[$x];$x++){ // loop through all field names and set for template use
+				$field_name = $field_names[$x];
+				$$field_name = $cat_record[$field_name];
+			}
+
+if ($Display_Name) $Name=$Display_Name;
+
+			$Product_Count = count_products($rn);
+			if ($Product_Count > 1) {
+				$Product_Count = "There are $Product_Count products in this category.";
+				} else {
+					if ($Product_Count == 1) {
+						$Product_Count = "There is 1 product in this category.";
+						} else {
+							unset($Product_Count);
+					}
+			}			
+			if($SC['secure_page']) {
+				$image_root = $SC['site_secure_root'];
+			} else {
+				$image_root = $SC['site_www_root'];
+			}
+			$Image_of_Name_true = "$site_isp_root/$SC[image_folder]/$Image_of_Name";
+			if(file_exists($Image_of_Name_true) && $Image_of_Name) { 				// $Image is a special case because I want to return an entire image tag, not just the path
+				$a = GetImageSize($Image_of_Name_true);
+				$Image_of_Name = "<img border=\"0\" src=\"$image_root/$SC[image_folder]/$Image_of_Name\" $a[3] >";
+				} else {
+					$Image_of_Name = "<span class=\"header\">$Name</span>";
+			}
+			$Image_of_Name = "<a href=\"".$SC['www_cart_page']."?crn=$rn&action=show&show_products_mode=cat_click$SC[SID]\">$Image_of_Name</a>";
+
+			$Image_true = "$site_isp_root/$SC[image_folder]/$Image";
+			if(file_exists($Image_true) && $Image) { 				// $Image is a special case because I want to return an entire image tag, not just the path
+				$a = GetImageSize($Image_true);
+				$Image = "<img border=\"0\" src=\"$image_root/$SC[image_folder]/$Image\" $a[3] >";
+			} 
+			$Image = "<a href=\"".$SC['www_cart_page']."?crn=$rn&action=show&show_products_mode=cat_click$SC[SID]\">$Image</a>";
+
+
+			$Open_Category_HREF = "?crn=$rn&action=show&show_products_mode=cat_click";
+			include $template; // include template to show info
+
+			if(children_exist($rn) && !$dont_show_subs) {
+				show_subcategory_detail($rn);
+			}
+		}
+	}
+}
+?>

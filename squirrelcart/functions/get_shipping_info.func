@@ -1,0 +1,173 @@
+<?
+// file created on 9/24/2003 for v1.2.0
+// file modified on 1/12/2004 for v1.4.0 - to fix problem were paking details on order record would prepend USPS to every shipping method regardless of courier
+//
+// purpose of function is to return a string containing details of shipping choices chosen by customer
+// this is used for the emails to the customer and merchant, and for the order management system
+//
+// $mode can be set to the following:
+// 		bare - just pricing and courier....no packing breakdown
+//		verbose - all info including packing breakdown
+// $no_header, if set to 1, will remove "Shipping Breakdown" line
+function get_shipping_info($mode="bare",$no_header=0){
+	global $SC;
+	$order = $SC['order'];
+	if ($mode == "bare") {
+		$forced_rate_pkgs = $order['shipping']['forced_rate_pkgs'];
+		$regular_rate_pkgs = $order['shipping']['regular_rate_pkgs'];
+		$regular_rate_items = $order['regular_rate_items'];
+		$set_rate_services = $order['set_rate_services'];
+		$set_rate_items = $order['set_rate_items'];
+		if (!$no_header) {
+			$ship_forced_string .= "Shipping Breakdown:\r";
+			$ship_forced_string .= "-----------------------------------------------\r";
+		}
+		$Currency_Symbol = $SC['currency'];
+		if ($set_rate_services) {
+			$service_rns = array_keys($set_rate_services);
+			for($x=0;$service_rns[$x];$x++){
+				$service_rn = $service_rns[$x];
+				$courier_rn = get_field_val("Shipping_Methods","Courier","record_number = $service_rn");	
+				// replace courier record number with name for template
+				$Courier = get_field_val("Shipping_Couriers","Name","record_number = $courier_rn");
+				$Postage = $set_rate_services[$service_rn]['postage'];
+				$Method = get_field_val("Shipping_Methods","Method","record_number = $service_rn");
+				$ship_set_string .= "The following item(s) will be shipped using $Courier $Method at a cost of $Currency_Symbol$Postage:\r";
+				$items = $set_rate_items;
+				// loop through each item in the set of pkgs
+				for($i=0;$items[$i];$i++){
+					$item = $items[$i];
+					$field_names = get_fields($SC['db'],"Products");
+					// set each field name as a variable for template file
+					for ($a=0;$field_names[$a];$a++){
+						$field_name = $field_names[$a];
+						$$field_name = $item[$field_name];
+					}
+					$Quantity = $item['qty'];
+					$ship_set_string .= "($Quantity) $Name\r";
+				}
+				$ship_set_string .= "\r";
+			}
+		}
+		if ($forced_rate_pkgs) {
+			$services = array_keys($forced_rate_pkgs);
+			for($x=0;$services[$x];$x++){
+				$services_rn = $services[$x];
+				$service = get_records("Shipping_Methods","*","record_number = $services_rn");
+				$service = $service[0];
+				// for template file ship_method_forced.php, set all fields in service record as variables
+				$field_names = array_keys($service);
+				for ($i=1;$field_names[$i];$i++){
+					$field_name = $field_names[$i];
+					$$field_name = $service[$field_name];
+				}
+				// replace courier record number with name for template
+				$Courier = get_field_val("Shipping_Couriers","Name","record_number = '".$service['Courier']."'");
+				$Postage = $forced_rate_pkgs[$services_rn]['rate']['postage'];
+				$ship_forced_string .= "The following item(s) will be shipped using $Courier $Method at a cost of $Currency_Symbol$Postage:\r";
+				$items = $forced_rate_pkgs[$services_rn]['items'];
+				// loop through each item in the set of pkgs
+				for($i=0;$items[$i];$i++){
+					$item = $items[$i];
+					$field_names = get_fields($SC['db'],"Products");
+					// set each field name as a variable for template file
+					for ($a=0;$field_names[$a];$a++){
+						$field_name = $field_names[$a];
+						$$field_name = $item[$field_name];
+					}
+					$Quantity = $item['qty'];
+					$ship_forced_string .= "($Quantity) $Name\r";
+				}
+				$ship_forced_string .= "\r";
+			}	
+		}
+		if($regular_rate_items) {
+			$courier = $order['shipping']['courier'];
+			$method = $order['shipping']['method'];
+			$postage = $regular_rate_pkgs['postage'];
+			$ship_regular_string .= "The following item(s) will be shipped using $courier $method at a cost of $Currency_Symbol $postage:\r";
+			// loop through each remaining regular rate item
+			$items = $regular_rate_items;
+			for($i=0;$items[$i];$i++){
+				$item = $items[$i];
+				$field_names = get_fields($SC['db'],"Products");
+				// set each field name as a variable for template file
+				for ($a=0;$field_names[$a];$a++){
+					$field_name = $field_names[$a];
+					$$field_name = $item[$field_name];
+				}
+				$Quantity = $item['qty'];
+				$ship_regular_string .= "($Quantity) $Name\r";
+			}
+		}
+		$result = $ship_forced_string.$ship_set_string.$ship_regular_string;
+	}
+	if ($mode == "verbose") {
+		$forced_rate_pkgs = $order['shipping']['forced_rate_pkgs'];
+		$regular_rate_pkgs = $order['shipping']['regular_rate_pkgs'];
+		$ship_method_rn = $order['shipping']['method_rn'];
+		if($forced_rate_pkgs || $regular_rate_pkgs[$ship_method_rn]) {
+			$ship_string .= "Shipping Breakdown:\r";
+			$ship_string .= "-----------------------------------------------\r";
+			$pkgs = $regular_rate_pkgs[$ship_method_rn];
+			//print $ship_method_rn;
+			$regular_rate_pkgs[$ship_method_rn]['type'] = "regular";
+			$pkg_types[] = $regular_rate_pkgs[$ship_method_rn];
+			$forced_service_rns = @array_keys($forced_rate_pkgs);
+			for($x=0;$forced_service_rns[$x];$x++){
+				$forced_service_rn = $forced_service_rns[$x];
+				$forced_rate_pkgs[$forced_service_rn]['type'] = "forced";
+				$pkg_types[] = $forced_rate_pkgs[$forced_service_rn];
+			}
+			$pack_string .= "Packing Breakdown:\r";
+			$pack_string .= "-----------------------------------------------\r";
+			for($i=0;$pkg_types[$i]; $i++){
+				$pkg_type = $pkg_types[$i];
+				$pkgs = $pkg_type;
+				if ($pkgs['type'] == "regular") $specified_by = "Customer";
+				if ($pkgs['type'] == "forced") $specified_by = "Merchant";
+				for($x=0;$pkgs[$x];$x++){
+					$pkg = $pkgs[$x];
+					// determine courier name based on service name
+					$courier_rn = get_field_val("Shipping_Methods","Courier","Method = \"".$pkg['rate']['service']."\"");
+					$courier = get_field_val("Shipping_Couriers","Name","record_number = $courier_rn");
+					if($courier == "United Parcel Service") unset ($courier); // UPS already has UPS at the beginning of each service name, so no need to add it later
+					$pkg_number++;
+					$pack_string .= "Package #$pkg_number:\r";
+					$qty=1;
+					for($r=0;isset($pkg['items'][$r]);$r++){
+						// item_si is the item's index in $SC[order]
+						$item_si = $pkg['items'][$r];
+						$item = $SC['order'][$item_si];
+						$item_name = $item['Name'];
+						$next_item = $pkg['items'][$r+1];
+						if ($item_si == $next_item && isset($next_item)){
+							$qty++;
+						} else {
+							$pack_string .= "\t($qty)  $item_name\r";
+							$qty = 1;
+						}
+					}
+					$pack_string .= "\r\r";
+					$ship_string .= "Package #$pkg_number:\r";
+					$ship_string .= "\tPostage:\t\t".$SC['currency'].$pkg['rate']['postage']."\r";
+					$ship_string .= "\tShip using:\t\t$courier ".$pkg['rate']['service']."\r";
+					$ship_string .= "\tSpecified by:\t\t$specified_by\r";
+					$ship_string .= "\tWeight:\t\t".$pkg['weight']." (".$SC['weight_symbol'].") \r";
+					$ship_string .= "\r\r";
+				}
+			}
+		} else {
+			// no packing was done, so there should be only 1 shipping method chosen
+			// in this case, make the breakdown very simple
+			$ship_string .= "Shipping Breakdown:\r";
+			$ship_string .= "-----------------------------------------------\r";
+			$ship_string .= " Ship using:\t".$order['shipping']['courier']." - ".$order['shipping']['method']."\r";
+			$ship_string .= " Cost:\t\t".$SC['currency'].$order['shipping']['cost']."\r";
+			$pack_string .= "";
+		}
+		$result = "$ship_string\r$pack_string";
+	}
+	return $result;		
+}
+?>

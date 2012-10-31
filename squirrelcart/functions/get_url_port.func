@@ -1,0 +1,21 @@
+<?
+function get_url_port($url) {
+// purpose of function is to return a port number, if it is present in the $url passed
+	// remove first colon and forward slashes
+	$url = str_replace("://","",$url);
+	// if URL contains a colon
+	if (strstr($url,":")) {
+		$colon_position = strpos($url, ":");
+		$slash_position = strpos($url, "/");
+	
+		if (!$slash_position){
+			$port = substr($url, $colon_position + 1);
+		} else {
+			$port_length = ($slash_position - $colon_position) - 1;
+			$port = substr($url, $colon_position + 1, $port_length);
+		}
+		if (!is_numeric($port)) unset($port);
+	}
+	return $port;
+}
+?>

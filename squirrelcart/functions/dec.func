@@ -1,0 +1,21 @@
+<?php
+function dec($enc_data) {
+    $ins = "generic input for installation";
+    /* Open module, and create IV */ 
+    $td = mcrypt_module_open ('des', '', 'ecb', '');
+    $ins = substr ($ins, 0, mcrypt_enc_get_key_size ($td));
+    $iv_size = mcrypt_enc_get_iv_size ($td);
+    $iv = mcrypt_create_iv ($iv_size, MCRYPT_RAND);
+
+    /* Initialize encryption handle */
+    if (mcrypt_generic_init ($td, $ins, $iv) != -1) {
+        /* Reinitialize buffers for decryption */
+        mcrypt_generic_init ($td, $ins, $iv);
+        $data = mdecrypt_generic ($td, $enc_data);
+        /* Clean up */
+        mcrypt_generic_deinit ($td);
+        mcrypt_module_close ($td);
+		return $data;
+    }
+}
+?>

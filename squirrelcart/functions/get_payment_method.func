@@ -1,0 +1,166 @@
+<?
+/*
+purpose of function is to display a form to get payment method, CC#, etc...
+data posted from this form is handled by post_payment_method()
+$missing is an array containing the names of the fields that are missing data or incorrectly filled out
+*/
+function get_payment_method($missing=0){
+global
+$SC,$posting_payment_info,$pay_info;
+$payment_methods=get_records("Payment_Methods",0,"Enabled = '1'","Type","ASC");
+
+$type = get_field_val("Payment_Methods","Type","Name = '$pay_info[method]'");
+if ($type==1) {
+	$SC['pay_info']['is_cc'] = 1;
+	} else {
+		unset($SC['pay_info']['is_cc']);
+		}
+
+// determine if electronic checks are enabled
+	$echecks_enabled = get_field_val("Payment_Methods","Enabled","record_number = '3'");
+	if (
+		$SC['payment_gateway']['Echeck_Capable'] 
+		&& $echecks_enabled
+		&& $SC['payment_gateway']['Connection_Method'] != "Client side non-secure form POST"
+		) 
+		{
+			$SC['collect_echecks'] = 1;
+		} else {
+			unset($SC['collect_echecks']);
+		}
+// determine if CVV2 collection is enabled
+	$Collect_CVV2 = get_field_val("Store_Information","Collect_CVV2");
+	if ($Collect_CVV2) {
+		if (file_exists($SC['theme_dir']."/cc_cvv2_help.php")) {
+			$CVV2_Help_HREF = $SC['theme_secure_dir']."/cc_cvv2_help.php";
+		} else {
+			$CVV2_Help_HREF = $SC['default_theme_secure_dir']."/cc_cvv2_help.php";
+		}
+		$CVV2_Help_Popup = popup_window($CVV2_Help_HREF,"(help)",650,450,"no","no");
+	}
+	
+include $SC[cart_isp_root]."/form_config.php";
+
+//-------- set list of fields on form -------//
+	$fields[] = "method";
+	$fields[] = "name_on_card";
+	$fields[] = "card_number";
+	$fields[] = "exp_month";
+	$fields[] = "exp_year";
+
+
+// ------ set error messages ---------------------------//
+	$missing_fields_err = "<span class='action_msg'>Some required information is missing!</span><br>";
+	
+	$cc_num_not_numerical = "<span class='action_msg'>Credit card number contains invalid characters!</span><br>";
+	if ($missing) print $missing_fields_err;
+	if($pay_info['bank_routing_number_not_numeric']) print "<div class='action_msg'>Bank routing number contains invalid characters!</div>";
+	if($pay_info['bank_account_number_not_numeric']) print "<div class='action_msg'>Bank account number contains invalid characters!</div>";
+	if($pay_info['check_number_not_numeric']) print "<div class='action_msg'>Check number contains invalid characters!</div>";
+	if($pay_info['cvv2_not_numeric']) print "<div class='action_msg'>Security Code contains invalid characters!</div>";
+	if($pay_info['cvv2_too_long']) print "<div class='action_msg'>Security Code must be 3 or 4 digits!</div>";
+	
+// below shows form to select payment method 
+if($missing || !$posting_payment_info) {
+		$Payment_Information_Image = get_image("Images","payment_information");
+		include $SC['templates']['payment_method_header'];
+		$submit_img = get_image("Images","continue_button",0,0,1);
+		$submit_link = "<input type='image' src='$submit_img'>";
+//		$submit_link = "<span style='cursor: hand' onclick='cart.submit(action='".$SC['www_cart_page']."?payment_info=1')'>$submit_img</span>";
+		if(!$pay_info['name_on_card'] && !$missing['name_on_card']) $pay_info['name_on_card'] = $SC['order']['Bill_Addr']['First_Name']." ".$SC['order']['Bill_Addr']['Last_Name'];
+		if(!$pay_info['bank_account_name'] && !$missing['bank_account_name']) $pay_info['bank_account_name'] = $SC['order']['Bill_Addr']['First_Name']." ".$SC['order']['Bill_Addr']['Last_Name'];
+		print "
+		<br><br><form id='cart' action='".$SC['secure_cart_page']."?payment_info=1' method='post'>
+		<input type='hidden' name='posting_payment_info' value='1'>
+		<span class='field_name'>Payment Method:</span>
+		<span class='field_input'>
+		<SELECT name='pay_info[method]'>
+		<option value=''></option>
+		";
+// loop through enabled payment methods
+		for($x=0;$payment_methods[$x];$x++){
+			unset($selected);
+			$method = $payment_methods[$x];
+		// if payment method type is a cc, as in Visa
+			if ($method['Type'] == 1) {
+		// if payment gateway allows cart to gather CC info
+				if ($SC['payment_gateway']['Connection_Method'] != "Client side non-secure form POST") {
+					$show_cc_fields = 1;
+				}
+			}
+			if($pay_info[method] == $method[Name]) $selected = "SELECTED";
+			print "<option $selected value='$method[Name]'>$method[Name]</option>\r";
+		}
+//--------- set list of required fields -------//
+		if($SC['pay_info']['is_cc'] && $show_cc_fields == 1) {
+			$required_fields = $fields;
+			} else {
+				$required_fields[] = "method";
+		}
+		print "
+		</SELECT>";
+		if ($missing[method]) print $missing_ind;
+		print "</span><br>";
+
+//------------------ start of credit card info section -----------------------------------------------------------------------------
+// as of v1.0.7, cc fields only show up if credit cards are enabled
+	if ($show_cc_fields) {
+		// set variables ofr use in payment_method_credit.php template 
+		if ($missing['cc_invalid']) $CC_Number_Invalid_Error = $missing['cc_invalid']."<br>";
+		unset ($missing['cc_invalid']);
+		$Exp_Year_Field = "
+			<select name='pay_info[exp_year]'>
+			<option vale=''></option>
+		";
+		$this_year = date("Y");
+		$this_year_short = date("y");
+		for ($x=0;$x!=10;$x++){
+			unset($selected);
+			$display = $this_year++;
+			if($pay_info[exp_year] == $display) $selected = "selected";
+			$Exp_Year_Field = $Exp_Year_Field."<option $selected value='$display'>$display</option>\r";
+		}
+		$Exp_Year_Field = $Exp_Year_Field."</select>";
+		$Selected['exp_month'][$pay_info['exp_month']] = "selected";
+		$Pay_Info = $pay_info;
+		$Missing = $missing;
+		// store connection method into variable for logic use in templates
+		$GW_Connection_Method = $SC['payment_gateway']['Connection_Method'];
+		include $SC['templates']['payment_method_credit'];
+	}
+//-------------- end of credit card info section -------------------
+		
+		// electronic check section
+		if($SC['collect_echecks']){
+			// set variables for use in template "payment_method_echeck.php"
+			$Routing_Symbol_Image = get_image("Images","check_routing_symbol");
+			$Account_Symbol_Image = get_image("Images","check_account_symbol");
+			$Echeck_Help_Image = get_image("Images","check_help_thumbnail");
+			$Missing = $missing;
+			$Pay_Info = $pay_info;
+
+
+			// if bank account type was set to "checking" then this will set $Selected['bank_account_type']['checking'] to "selected" for use in the templates
+			// to decide which option should be in a "selected" state
+			$Selected['bank_account_type'][$pay_info['bank_account_type']] = "selected";
+			// set options for bank account differently, depending on gateway
+			if ($SC['payment_gateway']['record_number'] == "10") { // if LinkPoint gateway, account types must be different than Authorize.net
+				$Bank_Account_Type_Options = "<option value=\"\"></option>
+				<option ".$Selected['bank_account_type']['PC']." value=\"PC\">Personal Checking</option>
+				<option ".$Selected['bank_account_type']['PS']." value=\"PS\">Personal Savings</option>
+				<option ".$Selected['bank_account_type']['BC']." value=\"BC\">Business Checking</option>
+				<option ".$Selected['bank_account_type']['BS']." value=\"BS\">Business Savings</option>
+				";
+			} else {
+				$Bank_Account_Type_Options = "<option value=\"\"></option>
+				<option ".$Selected['bank_account_type']['checking']." value=\"checking\">Checking</option>
+				<option ".$Selected['bank_account_type']['savings']." value=\"savings\">Savings</option>";
+			}
+			include $SC['templates']['payment_method_echeck'];
+		}
+		// -------------- end of electronic check section -------------------
+		$Submit_Button = $submit_link;
+		include $SC['templates']['payment_method_footer'];
+		}		
+}
+?>

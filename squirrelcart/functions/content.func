@@ -1,0 +1,87 @@
+<?
+// file modified on 5/22/2003 to improve content functionality
+//
+// purpose of function is to return content inserted into a template file, and then send the entire text of the file, with the content placed inside, as a variable to be 
+// printed or evaluted, depending on whether or not their is PHP in the content
+
+function content($name,$no_template=0){
+global
+$SC,$cart_isp_root,$cart_www_root;
+
+	$content = get_records("Content","*","Name = \"$name\"",0,0);
+	$content = $content[0];
+	// below line will cause this function to not return anything if nothing was specified in the Content field for the Content record
+	if($content['Show_When']) {
+//		$keys = array_keys($GLOBALS);
+//		$show_when = $field_def['Show_When'];
+		eval("\$show = ".$content['Show_When'].";");
+	} else {
+		$show = 1;
+	}
+	if ($show) {
+		$theme_rn = $SC['theme_rn'];
+		
+		if($content['Template'] && !$no_template){
+			$template_filename = get_field_val("Templates","Filename","record_number = ".$content['Template']);
+			$template = $SC['theme_dir']."/$template_filename";
+			if (!file_exists($template)) {
+				$template = $SC['default_theme_dir']."/$template_filename";
+				if (!file_exists($template)) {
+					print "Template file $template not found!";
+					return;
+				}
+			}
+		} else {
+			return "?> ".$content['Content']." <?";
+		}
+		
+		
+		$fields = get_fields($SC['db'],"Content");
+		for($x=0;$fields[$x];$x++){
+			$field = $fields[$x];
+			$$field = $content[$field];
+		}
+		
+		$Image_1_Path = $Image_1;
+		$Image_2_Path = $Image_2;
+		$Image_3_Path = $Image_3;
+		$Image_4_Path = $Image_4;
+		
+		if($Image_1)  $Image_1 = get_image("Content",0,"Image_1","record_number = ".$content['record_number']);
+		if($Image_2)  $Image_2 = get_image("Content",0,"Image_1","record_number = ".$content['record_number']);
+		if($Image_3)  $Image_3 = get_image("Content",0,"Image_1","record_number = ".$content['record_number']);
+		if($Image_4)  $Image_4 = get_image("Content",0,"Image_1","record_number = ".$content['record_number']);
+		
+		$file_array = file($template);
+		
+		for($x=0;$file_array[$x];$x++){
+			$file = $file.$file_array[$x];
+		}
+		
+		if ($SC['secure_page']) {
+			$file = str_replace('<?=$ThemeDir?>',$SC['theme_secure_dir'],$file);
+		} else {
+			$file = str_replace('<?=$ThemeDir?>',$SC['theme_www_dir'],$file);
+		}
+		$file = str_replace('<?=$Name?>',$Name,$file);
+		$file = str_replace('<?=$Content?>',$Content,$file);
+		$file = str_replace('<?=$Header?>',$Header,$file);
+		$file = str_replace('<?=$Image_1_Path?>',$Image_1_Path,$file);
+		$file = str_replace('<?=$Image_2_Path?>',$Image_2_Path,$file);
+		$file = str_replace('<?=$Image_3_Path?>',$Image_3_Path,$file);
+		$file = str_replace('<?=$Image_4_Path?>',$Image_4_Path,$file);
+		$file = str_replace('<?=$Image_1?>',$Image_1,$file);
+		$file = str_replace('<?=$Image_2?>',$Image_2,$file);
+		$file = str_replace('<?=$Image_3?>',$Image_3,$file);
+		$file = str_replace('<?=$Image_4?>',$Image_4,$file);
+		$file = str_replace('<?=$Text_1?>',$Text_1,$file);
+		$file = str_replace('<?=$Text_2?>',$Text_2,$file);
+		$file = str_replace('<?=$Text_3?>',$Text_3,$file);
+		$file = str_replace('<?=$Text_4?>',$Text_4,$file);
+		$file = str_replace('<?=$Footer?>',$Footer,$file);
+		
+		$content = "?> $file <?";
+		return $content;
+	}
+}
+?>

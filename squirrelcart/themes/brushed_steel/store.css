@@ -1,0 +1,51 @@
+	.action_msg { color: red; font-weight: bold; }
+	.all_content { text-align: left; width: 775; }
+	.bold_message { font-size: 12pt; font-weight: bold; }
+	.bread_crumb_link { font-family: Verdana, Tahoma, Helvetica; font-size: 9px }
+	.bread_crumb_link:active { font-family: Verdana, Tahoma, Helvetica; font-size: 9px; color: white; font-style: normal}
+	.bread_crumb_link:visited { font-family: Verdana, Tahoma, Helvetica; font-size: 9px; color: white; font-style: normal}
+	.bread_crumb_link:hover { font-family: Verdana, Tahoma, Helvetica; font-size: 9px; color: white; font-style: normal; color: yellow}
+	.bread_crumb_nav { width: 100%; text-align: left; color: white; font-style: italic}
+	.cart_instruction { font-size: 15px; }
+	.category_collapsed { color: black; text-decoration: none; width: 100%; cursor: pointer}
+	.category_collapsed:hover { background-color: gray; text-decoration: none; width: 100%; cursor: pointer}
+	.category_expanded { border-bottom: white solid 1px; font-weight: bold; width: 100%;cursor: pointer}
+	.category_expanded_surround { border-color: white; border-style: solid; border-width: 1px; margin-left: 2; margin-right: 2; width: 100%;}
+	.category_selected { font-weight: bold; width: 100%; cursor: pointer}
+	.content {background-color: #FFFFFF; width: 100%; margin-left: 10; border: black solid 3px; padding: 10}
+	.field_input { text-align: left; width: 300; }
+	.field_name { padding-right: 2; position: relative; text-align: right; top: 3; vertical-align: top; width: 150; }
+	.header { font-size: 20px; }
+	.header2 { font-size: 14px; font-weight: bold; text-align: left; background-color: #CED1E0; padding: 2pt; width: 100%; border: gray solid 1px}
+	.new_item { border-style: none; position: relative; top: 6; }
+	.page_navigation { margin-bottom: 10; height: 10; width: 100%; margin-top: 10 }
+	.product_add_to_cart { position: relative; top: 10; vertical-align: middle; }
+	.product_description { margin-bottom: 5; margin-top: 5; text-align: left; vertical-align: top; width: 100%; }
+	.product_detail { padding-left: 10; padding-right: 10; text-align: center; width: 100%; }
+	.product_display { background-color: white; margin-bottom: 20; text-align: center; width: 600; }
+	.product_display_detail { margin-bottom: 20; padding-top: 20; text-align: center; width: 479; }
+	.product_image { vertical-align: middle; }
+	.product_image_bar { color: white; text-align: center; vertical-align: top; width: 100; }
+	.product_name { color: blue; font-size: 12pt; font-weight: bold; text-align: center; width: 100%; }
+	.product_options_details_link:visited { text-decoration: underline; }
+	.product_option_select { height: 20; margin-bottom: 5; }
+	.product_price { vertical-align: middle; width: 300; }
+	.product_quantity { text-align: center; vertical-align: middle; width: 50; }
+	.shaded_td {background-color: #EDEDED}
+	.small_link { font-size: 7pt; font-weight: normal; }
+	.small_select { font-size: 9 px; }
+	.stat_table { border: black solid 1px;}
+	.stat_top_row { background-color: #B4B9D2; color: black; font-weight: bold;}
+	.stat_top_td {border-bottom: solid black 1px}
+	.stat_td { border-bottom: silver solid 1px }
+	.stat_td_alternate { border-bottom: silver solid 1px; background-color: #F1F3F9 }
+	.sub_category_link { color: red; text-decoration: none; }
+	.ups_window {border: black solid 1; width: 525}
+	.ups_window_header {background-color: #804000; height: 30; color: white; font-size: 10pt; font-weight: bold; padding: 5}
+	A:hover { color: #800000; text-decoration: underline; }
+	A:visited { color: purple; text-decoration: none; }
+	BODY { background-color: #800000; font-family: Verdana, Tahoma; font-size: 7pt; font-weight: bold; text-align: center; }
+	INPUT { font-size: 11px; }
+	SELECT { font-size: 11px; }
+	TD { font-family: Verdana, Tahoma; font-size: 7pt; text-align: center; }
+	TEXTAREA { font-size: 11px; }

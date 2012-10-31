@@ -1,0 +1,23 @@
+<?
+// ---- purpose is to send an e-mal ------------------//
+// this file modified on 10/20/02 for v1.0.9 to fix problem with headers. headers contained double quotes 
+// that where causing problems with message formatting on certain server platforms
+
+function send_email_out($to_address,$subject,$message,$from_address,$reply_address,$cc=0,$bcc=0){
+global
+$SC;
+
+// remove any quotes in the addresses below. they are not needed anymore, and cause problems
+	$to_address=str_replace("\"","",$to_address);
+	$from_address=str_replace("\"","",$from_address);
+	$reply_address=str_replace("\"","",$reply_address);
+
+
+	$from_address="$from_address <$reply_address>";
+	$headers = "From: $from_address\r\n";
+	if ($cc) $headers .= "Cc: $cc\r\n";
+	if ($bcc) $headers .= "Bcc: $bcc\r\n";
+
+	mail($to_address, $subject, $message,$headers);
+}
+?>

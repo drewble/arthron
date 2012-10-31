@@ -1,0 +1,71 @@
+<?
+// function modified on 5/23/2003 for v1.1.1 to improve delete inhibit functionality
+// purpose of function is to loop through an array of record numbers, and delete their records from specified table
+Function delete_multiple_records($table,$record_numbers) {
+global
+$SC,$delete_selected_records,$show_record_links,$canceled,$confirmed;
+
+if($record_numbers) $SC['delete_selected_records'] = $record_numbers;
+$record_numbers = $SC['delete_selected_records'];
+$count = count($record_numbers);
+
+if($record_numbers) {
+// print form to confirm deletion
+	if(!$confirmed && !$canceled) {
+		if (count($record_numbers) > 1) $plural = "s";
+		print "
+		<br><br>\r\n
+		<form action='' method='post'>\r\n
+			You have chosen to delete $count record$plural from the \"$table\" table.<br><br>\r\n
+			Click \"Delete Records\" button below to confirm, or \"Cancel\" to cancel.<br><br>\r\n
+			<input type='hidden' name='delete_selected_records' value='1'>\r\n
+			<input type='submit' name='canceled' value='Cancel'>\r\n
+			<input type='submit' name='confirmed' value='Delete Records'>\r\n
+		</form>\r\n
+		";
+	}
+
+	if($confirmed){
+		print "<br><br>";
+		for($x=0;$record_numbers[$x];$x++){
+			$del_result = delete_record($table, $record_numbers[$x]);
+			print $del_result['Message']."<br>";
+			if (!$del_result['Error']) {
+				$deletion_count = $deletion_count + 1;
+			} else {
+				$failure_count = $failure_count + 1;
+			}
+		}
+		if ($failure_count) {
+			$partially = "partially";
+			if ($failure_count > 1) $plural = "s";
+			$failure_string = "Unable to delete $failure_count record$plural from table \"$table\"";
+		}
+		if ($deletion_count) {
+			if ($deletion_count > 1) $plural2 = "s";
+			print "<br><br>Operation $partially successful. $deletion_count record$plural deleted from table \"$table\". $failure_string ";
+		} else {
+			print "<br><br>Operation not successful. $failure_string ";
+		}
+		unset($SC['delete_selected_records']);
+		$just_deleted = 1;
+	}
+	if($canceled){
+		if ($canceled) print "<br><br>Operation canceled<br>";
+		unset($SC['delete_selected_records']);
+		unset($delete_selected_records);
+	}
+}
+	if($canceled || !$record_numbers || $just_deleted) {
+		if (!$record_numbers) print "<br><br>You must select at least one record to delete!<br>";
+		$return_url = $SC['www_admin_page']."?table=$table&show_record_links=1";
+		if($just_deleted) {
+			$refresh_secs = "3";
+			} else {
+			$refresh_secs = "1";
+		}
+		print "<meta http-equiv=\"Refresh\" content=\"$refresh_secs; URL=$return_url\">";
+	}
+print "<br><br><br><br><br>";
+}
+?>

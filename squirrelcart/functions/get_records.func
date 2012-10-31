@@ -1,0 +1,49 @@
+<?
+// file modified on 5/23/2003 for v1.1.1 - to allow records to be hidden
+function get_records($table,$select,$where=0,$sortby=0,$order=0,$test=0,$limit=0,$hide_records=0){
+global $SC;
+// $table is table to get records from
+// $sortby is equal to a string of the name of the field you would like to sort by - ie "Name"
+// $order is the order you want to sort in and can be either (0 or "ASC") for "ASC" or (1 or "DESC") for "DESC"
+// $hide_records is used by functions that should not display hidden records. set it to 1 to hide records that are set as hidden in Record_Definition table
+	if ($where) $where_string = "WHERE $where";
+	if (!$select) $select = "*";
+	if ($order==0 || $order=="ASC") $order_string = "ASC";
+	if ($order==1 || $order=="DESC") $order_string = "DESC";
+	if ($sortby) $sort_string = "ORDER BY $sortby $order_string";
+	if ($limit) $limit_string = $limit;
+	
+	// below section is for hiding records when you are logged in as a non developer
+	if ($hide_records) {
+		// if doing a search, set the query string
+		if ($where) {
+			$search_string = "AND $where";
+			$search_string = str_replace("record_number","$table.record_number",$search_string);
+			$search_string = str_replace("Table_Name","$table.Table_Name",$search_string);
+		}
+		$select = str_replace(",",",$table.",$select);
+		$select = "$table.$select";
+		// set query
+		$query = "SELECT $select 
+		FROM $table
+		LEFT JOIN Record_Definition rd ON $table.record_number = rd.Record AND '$table' = rd.Table_Name
+		WHERE ((
+		rd.Table_Name = '$table' AND rd.Hide_Record != 1
+		) OR rd.Record IS NULL OR rd.Table_Name IS NULL) $search_string $sort_string $limit_string";		
+	} else {
+		$query = "SELECT $select FROM $table $where_string $sort_string $limit_string";
+	}
+	if ($test) print "query is $query<br>";
+	$result = mysql_query ($query);
+	$error = mysql_error();
+	if (!$error) {
+		while ($row = mysql_fetch_array ($result)) {
+			$records[] = $row;
+		}
+		return $records;
+	} else {
+		print "<b>MySQL error:</b> $error<br>";
+		print "<b>Query was:</b> $query<br>";
+	}
+}
+?>

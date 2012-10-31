@@ -1,0 +1,54 @@
+<?
+function Admin_Show_Tables(){
+global
+$SC,$show_table_links,$db,$table,$filler_img;
+//------------select table to modify, and display options ---------------------------//
+
+
+// if table, select_key1, etc... was just selected, store it in the session so admin utility remembers what you last looked at
+	if($table) $SC[edit_record][table] = $table;
+	$table = $SC[edit_record][table];
+
+// get names of tables into an array
+	$tables = get_tables($db);
+
+	if ($show_table_links) {		// if the table has not been selected yet, show table links
+		unset ($SC[edit_record][table]) ; // assumes that if you click the link to choose a new table, you want to wipe out the previous one
+		print "<table border=0 cellpadding=2 cellspacing=0 style=\"border-right: silver solid 1; border-bottom: silver solid 1\">";
+		print "<tr><td class=\"header_cell\" style=\"border-left: black solid 1\">Options</td><td class=\"header_cell\">Table Name</td></tr>";
+		unset($table) ; //wipe out the current value of table, so unecessary fields don't show up below
+		unset($selected_record_number);
+		// display links for each table to administer
+			print "Choose table to administer: <br><br>";
+			for($a=0;$tables[$a];$a++){
+				$current_table = $tables[$a];
+				$current_table_nu = str_replace("_"," ",$current_table);
+				print "
+				<tr>\r\n
+					<td class=\"non_header_cell\" >\r\n
+						<a class=\"admin_option_link\" href=\"?table=$current_table&show_record_links=1\">Select</a>\r\n
+					</td>\r\n
+					<td class=\"non_header_cell\">\r\n
+						<a class=\"admin_option_link\" href=\"?table=$current_table&show_record_links=1\">$current_table_nu</a>\r\n
+					</td>\r\n
+					<td></td>\r\n
+				</tr>";
+			}
+		print "</table>";
+		}
+		
+// display a select box to choose the table ------------------------//
+			$select_table_instruction = "<a class=\"admin_option_link\" style=\"width: 70\" href=\"?show_table_links=1\">Current table:</a> ";
+//			print "<span style='position: relative; z-index: -1'><form action=\"\" method=\"post\">\r";
+//			selectbox(0,0,0,1,0,"nu",$select_table_instruction, $tables, "table");
+//			print "<input type=\"hidden\" name=\"old_table\" value=\"$table\">\r"; // used to determine whether table was changed. for later use
+//			print "</form></span>\r";
+			print "<div id=\"tablesMenu\" class=\"menu\" style='width:150'>\r";
+				for ($x=0;$tables[$x];$x++){
+					$text = str_replace("_"," ",$tables[$x]);
+					print "<a style=\"width: 100%; font-size: 7pt\" class=\"menuItem\" href=\"$SC[admin_www_page]?show_record_links=1&table=$tables[$x]\">&nbsp;&nbsp;$text</a>\r";
+				}
+			print "</div>";
+// ----------- end of table select section ------------------------------------------//}
+}
+?>

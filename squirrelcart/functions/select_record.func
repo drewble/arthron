@@ -1,0 +1,39 @@
+<?
+function select_record($records){
+global
+$select_key1, $select_key2,$selected_record_number,$fill;
+print "
+<br><font style=\"width: 100; text-align: right\">Modify Record: </font>
+<select name=\"selected_record_number\" size=\"1\" onchange=\"this.form.submit()\">\n
+<option></option>\n";
+$x=0;
+while ($records[$x]) {
+	// SET WHICH OPTION IN SELECT IS SELECTED
+	if ($selected_record_number == $records[$x]["record_number"]) {
+		$selected = "SELECTED";
+	} else	{
+		$selected = "";
+		}
+	// determine whether to show comma in record select box
+		if(($select_key2 != "") && ($select_key2 != "none")) $comma = ", " ; else $comma = "";
+	// determine what to display as value of select
+	// this is needed to translate fields that are set via a relationship to a record number from another table
+	// ie...the value of country may be 140, its record number in the country table, but we want it to display as
+	// "Unites States"
+		if ($fill[$select_key1]) { //$v1="fill $select_key1<br>";
+			$v1=display_rel_value($fields_sorted, $fill[$select_key1], $records[$x][$select_key1]);
+		} else {
+			$v1=$records[$x][$select_key1];
+			} //end of IF - ELSE
+		if ($fill[$select_key2]) { //$v2="fill $select_key2<br>";
+			$v2=display_rel_value($fields_sorted, $fill[$select_key2], $records[$x][$select_key2]);
+		} else {
+			$v2=$records[$x][$select_key2];
+			} //end of IF - ELSE
+	// print select options	
+	print "
+	<option value=\"".$records[$x++]["record_number"]."\" $selected>".$v1.$comma.$v2."</option>\n";
+};
+print "</select>\n";
+}
+?>

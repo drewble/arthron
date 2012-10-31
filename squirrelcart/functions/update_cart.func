@@ -1,0 +1,112 @@
+<?
+/*
+purpose of function is to handle when a customer updates the cart at checkout, as in quantity changes, etc....
+
+modified 9/18/02 for v1.0.9 - added referring URL check
+*/
+
+function update_cart(){
+global
+$SC,$quantity,$remove;
+
+if(check_referer()) {
+	//---- when updating cart, shipping method needs to be recalculated
+	//---- so the following line wipes out what was previously chosen
+	unset($SC[order][shipping]);
+	
+	unset($zero_qty);
+	
+	// remove item from cart
+	if(isset($remove) && $remove != "none"){
+		$remove = $remove - 1;
+		// handle inventory control
+		if ($SC['inventory_control']){
+			$num_in_cart = $SC['order'][$remove]['qty'];
+			$num_in_stock = get_field_val("Products","Number_in_Stock","record_number = '".$SC['order'][$remove]['record_number']."'");
+			$new_qty = $num_in_stock + $num_in_cart;
+			// add items that where in cart back into inventory
+			set_field_val("Products","Number_in_Stock",$new_qty,"record_number = '".$SC['order'][$remove]['record_number']."'");
+		}
+		$SC['order'][$remove]['qty'] = 0;
+		$zero_qty = 1;
+		unset($quantity);
+	}
+	
+	// ------------- loop through each item in cart and update quantity ----------------//
+		for ($x=0;isset($quantity[$x]);$x++){
+			$new_qty = $quantity[$x];
+			$old_qty = $SC["order"][$x]["qty"];
+			//fix to not allow negative quantities
+			if($new_qty < 0) {
+				$new_qty = $old_qty;
+				$SC['cart_message'] = $SC['cart_message']."<br><span class=\"action_msg\">Invalid negative quantity specified for item \"".$SC['order'][$x]['Name']."\"<br>";
+			}
+			//fix to not allow decimal quantities
+			if(strstr($new_qty,".")) {
+				$new_qty = $old_qty;
+				$SC['cart_message'] = $SC['cart_message']."<br><span class=\"action_msg\">Invalid decimal quantity specified for item \"".$SC['order'][$x]['Name']."\"<br>";
+			}
+			//fix to prevent extremely large quantities
+			if($new_qty > $SC['max_qty']) {
+				$new_qty = $old_qty;
+				$SC['cart_message'] = $SC['cart_message']."<br><span class=\"action_msg\">Quantity has exceeded maximum allowed for item \"".$SC['order'][$x]['Name']."\"<br>";
+			}
+			
+
+			// if quantity has changed, update in order
+			if($new_qty != $old_qty && is_numeric($new_qty)){
+
+			// update inventory
+				if ($SC['inventory_control']){
+					$stock_diff = $old_qty - $new_qty;
+					$num_in_stock = get_field_val("Products","Number_in_Stock","record_number = '".$SC['order'][$x]['record_number']."'");
+					$new_stock_qty = $num_in_stock + $stock_diff;
+					// if customer is adding more items than are in stock, generate error
+				// if number ordered is more than number in stock, and out of stock behavior is 1 or 3 (no purchase allowed), generate error and return
+
+					if($new_stock_qty < 0 && ($SC['out_of_stock_behavior'] == 1 || $SC['out_of_stock_behavior'] == 3)) {
+						$max_qty = $old_qty + $num_in_stock;
+						if($num_in_stock == 0) {
+							$SC['cart_message'] = $SC['cart_message']."<br><span class=\"action_msg\">We are sorry, but we have no more \"".$SC['order'][$x]['Name']."\" in stock, not including the $old_qty already in your cart. You cannot add anymore to your order at this time.</span><br><br>";
+							} else {
+								$SC['cart_message'] = $SC['cart_message']."<br><span class=\"action_msg\">We are sorry, but we only have $num_in_stock more \"".$SC['order'][$x]['Name']."\" in stock, not including the $old_qty already in your cart. The maximum number you can have in your cart is $max_qty. Please change the quantity accordingly.</span><br><br>";
+						}
+						$no_inventory = 1;
+						} else {
+						// modify stock accordingly
+							set_field_val("Products","Number_in_Stock",$new_stock_qty,"record_number = '".$SC['order'][$x]['record_number']."'");
+							unset($no_inventory);
+					}
+				}
+			// done updating inventory
+			
+				if($new_qty==0) $zero_qty = 1;						
+				if(!$no_inventory) $SC["order"][$x]["qty"] = $new_qty;
+				}
+			} // end of FOR
+	// ------------- END OF  loop through each item in cart and update quantity ----------------//
+	
+	
+	// ----------------- remove 0 qty items (deleted items) -------------------------------//
+		// if an item is set to 0 qty, then remove it from the $SC["order"] variable (basically delete it from the cart)
+		if($zero_qty) {
+			unset($new_ord);
+			for ($x=0;$SC["order"][$x];$x++){ // loop thru each item in cart
+				$old_order = $SC["order"][$x]; // set to item in cart
+				if ($old_order["qty"] != 0) {	// if qty is not 0
+					$new_ord[] = $old_order;
+				}
+				} // end of FOR
+			$SC["order"] = $new_ord; // replace entire order with new one that has 0 qty items removed
+			} // end of IF
+	// ----------------- END OF  remove 0 qty items (deleted items) -------------------------------//
+	
+	
+	if(!$no_inventory) $SC[cart_message] = $SC['cart_message']."<span class=\"action_msg\">Cart has been updated</span><br>";
+} else {
+	$SC[cart_message] = "<span class=\"action_msg\">Error: access denied. Attempting to post form data from an unauthorized host!</span><br>";
+}
+} // end of FUNCTION
+
+// modified 09/25/02 for v1.0.9 to enable inventory control
+?>

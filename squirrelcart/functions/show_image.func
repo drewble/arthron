@@ -1,0 +1,17 @@
+<?
+function show_image($table,$name){
+global
+$SC;
+	$table = str_replace(" ","_",$table);
+	$image = get_records($table,0,"Name = \"$name\"",0,0);
+	$image = $image[0];
+	$image_path = $image["Image"];
+	$alt= $image["Alt"];
+	$size = GetImageSize("$SC[site_isp_root]/$image_path");
+	if($SC['secure_page']) {
+		print "<IMG border=\"0\" src=\"$SC[site_secure_root]/$image_path\" alt=\"$alt\" $size[3]>";
+		} else {
+			print "<IMG border=\"0\" src=\"$SC[site_www_root]/$image_path\" alt=\"$alt\" $size[3]>";
+	}		
+}
+?>

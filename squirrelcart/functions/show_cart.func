@@ -1,0 +1,200 @@
+<?
+// file modified on 8/4/2003 for v1.2...removed check for show_cart, and placed it in show_cart.php
+// file modified on 10/30/2003 for v1.3.0 to fix manual add to cart problems
+// file modified on 11/22/03 for v1.3.0 - changed method to get so we can hit the back button without refreshing
+
+function show_cart(){
+	global
+	$cart_isp_root,$SC,$Currency_Sym,$show_cart, $cart_www_root;
+	//------------- shipping and billing address defaults, for use in top of view cart page----------------//
+if($SC['user']){
+	if (!$SC['order']['Bill_Addr']) {
+		$SC['order']['Bill_Addr'] = $SC['user'];
+		// -------- Add state and state abbrev to session for payment gateway use -----------------//
+			$state_abbrev = get_field_val("States","Abbreviation","record_number = \"".$SC['order']['Bill_Addr']['State_or_Province']."\"");
+			$SC['order']['Bill_Addr']['State_Abbrev'] = $state_abbrev;			
+			$state = get_field_val("States","Name","record_number = \"".$SC['order']['Bill_Addr']['State_or_Province']."\"");
+			$SC['order']['Bill_Addr']['State_or_Province_Display']=$state;
+			$country = get_field_val("Countries","Name","record_number = \"".$SC['order']['Bill_Addr']['Country']."\"");
+			$SC['order']['Bill_Addr']['Country_Display']=$country;
+		}
+	if (!$SC['order']['Ship_Addr']) {
+			$SC['order']['Ship_Addr'] = $SC['user'];
+			$state_abbrev = get_field_val("States","Abbreviation","record_number = \"".$SC['order']['Ship_Addr']['State_or_Province']."\"");
+			$SC['order']['Ship_Addr']['State_Abbrev'] = $state_abbrev;			
+			$state = get_field_val("States","Name","record_number = \"".$SC['order']['Ship_Addr']['State_or_Province']."\"");
+			$SC['order']['Ship_Addr']['State_or_Province_Display']=$state;
+			$country = get_field_val("Countries","Name","record_number = \"".$SC['order']['Ship_Addr']['Country']."\"");
+			$SC['order']['Ship_Addr']['Country_Display']=$country;
+		}
+}
+	
+	// set variables for shipping and billing address template
+	$Billing = $SC['order']['Bill_Addr'];
+	if ($Billing['Street_2']) $Billing['Street'] = "$Billing[Street]<br>$Billing[Street_2]";
+	$Shipping = $SC['order']['Ship_Addr'];
+	if ($Shipping['Street_2']) $Shipping['Street'] = "$Shipping[Street]<br>$Shipping[Street_2]";
+	
+	$empty_cart_msg = "There are no items in your cart.";
+
+	if(!$SC['order'][0]){			// if nothing is in cart, display error, and exit. else show cart.
+		print "<span class=\"action_msg\" >$empty_cart_msg</span><br>";
+	} else {
+		//----- this section controls what is displayed for instructions, and what the Continue button will do -----------------------------------//
+		$checkout_cart_img = get_image("Images","continue_button");
+		if ($SC['order']['Bill_Addr'] && !$SC['order']['Bill_Addr']['missing']) {		// if shipping address info already exists, this button will go to shipping method form
+			if($SC['order']['shipping']['courier']){					// if shipping method is already set, this button will go on to payment method gathering
+				$instructions = "Confirm that all information is correct, then click the <b>Continue...</b> button <br>at the bottom of the page to continue to payment section.<br>";
+				$Checkout_Button = "<a href=\"$SC[secure_cart_page]?payment_info=1$SC[send_sid]\">$checkout_cart_img</a>";
+			} else {
+				$instructions = "Click the <b>Continue...</b> button at the bottom of the page to choose your shipping method.<br>";
+				$Checkout_Button = "<a href=\"$SC[secure_cart_page]?shipping_method=1$SC[send_sid]\">$checkout_cart_img</a>";
+			}
+		} else {				// otherwise, it will go to shipping info page
+			$instructions = "Click the <b>Continue...</b> button at the bottom of the page to submit your address information.<br>";
+			$Checkout_Button = "<a href=\"$SC[secure_cart_page]?shipping_info=1$SC[send_sid]\">$checkout_cart_img</a>";
+		}
+
+		$shipping_info = $SC['order']['shipping'];
+		if ($SC['force_ship_rule']) {
+			$forced_rule_message = "<span class=\"action_msg\">A default shipping method of $shipping_info[courier] $shipping_info[method] ($SC[currency]$shipping_info[cost]) has been added to your order.</span><br><br>";
+			unset($SC['force_ship_rule']);
+		}
+		$instructions = "$forced_rule_message<span class=\"cart_instruction\">$instructions</span>";
+		$Viewing_Cart_Image = get_image("Images","viewing_cart");
+		$Pencil_Left = get_image("Images","edit_address");
+		$Remove_From_Cart_Image = get_image("Images","remove_from_cart",0,0,1);
+		include $SC['templates']['view_cart_header']; // top of view cart page
+		print $instructions;
+	
+		// if billing address is set, include billing and shipping addresses at top of form
+		if ($SC['order']['Bill_Addr'] && !$SC['order']['Bill_Addr']['missing']) { 
+			print "<br><br>\r";
+		 	include $SC['templates']['view_cart_shipping_addresses']; // shipping and billing address template
+		}
+		include $SC['templates']['view_cart_product_header']; // top of view cart with column headers
+	
+		//--------- needed for removal from cart button ---------------//
+		print "<input type=\"hidden\" id=\"remove\" name=\"remove\" value=\"none\">";	
+	
+		//--------- loop through each item in the cart --------------------
+		for($i=0,$ord=0;$SC["order"][$i];$i++){
+			$ord=$SC["order"][$i];
+			//-----------  loop through ordered item and get options chosen into an array----------------
+			unset($ops_exp);
+			for($r=0;$ord["option"][$r];$r++){
+				$ops_exp[] = explode("^^",$ord["option"][$r]);
+			}
+			//------- set variables for use in themes -----------------------
+		   	// ----------- form buttons -----------------//
+			$empty_cart_img = get_image("Images","empty_cart_button");
+			$update_cart_img = get_image("Images","update_cart_button",0,0,1);
+			if ($ord['record_number']) {
+				$Product_Link = "?crn=$ord[Category]&rn=$ord[record_number]&action=show_detail";
+			} else {
+				unset($Product_Link);
+			}
+			if($SC['order']['shipping']['courier']) {		// if shipping method is already set
+				$courier = $SC['order']['shipping']['courier'];
+				$method = $SC['order']['shipping']['method'];
+				if($SC['order']['shipping']['forced_rate_pkgs'] ||  $SC['order']['set_rate_items']) {
+					$Shipping_Link = "<a href=\"?shipping_method=1\">Shipping and Handling:</a>";
+				} else {			
+					if ($courier != "United Parcel Service") $courier_name = "$courier ";
+					$Shipping_Link = "<a href=\"?shipping_method=1\">Shipping and Handling via $courier_name$method:</a>";
+				}
+			} else {
+				$Shipping_Link = "Shipping and Handling:";
+			}
+			$itemnum = $i + 1; // this is used so no first remove button will set remove to 1 and not 0.
+			$Remove_From_Cart_Button = "<img style='cursor: pointer' src='$Remove_From_Cart_Image' onclick=\"cart.remove.value='$itemnum',cart.submit()\">";
+			$Empty_Cart_Button = "<a href='?delete_cart=1'>$empty_cart_img</a>";
+			$Update_Cart_Button = "<input type='image' name='update_cart' src='$update_cart_img' alt='Update Cart'>";
+	
+		//---------------------------------------------//
+			$Form_Action = $SC['cart_www_page'];
+			$Item_Name = $ord["name"];				
+			$Product_Code = $ord["Product_Code"];				
+			if($SC['secure_page']) {
+				$root = $SC['site_secure_root'];
+			} else {
+				$root = $SC['site_www_root'];
+			}
+			// try to use missing thumbnail image if no thumbnail image for product available
+			if(!$ord['Thumbnail_Image']) $ord['Thumbnail_Image'] = get_field_val("Store_Information","Missing_Thumbnail_Image");
+			if (is_file($SC['site_isp_root']."/".$SC["image_folder"]."/$ord[Thumbnail_Image]")) {
+				$Thumbnail_Image = "$root/".$SC["image_folder"]."/$ord[Thumbnail_Image]";
+			} else {
+				unset($Thumbnail_Image);
+			}
+			$Description = $ord['Description'];				
+			if(!$ord[Brief_Description]) {
+				$Brief_Description = $Description;
+			} else {
+				$Brief_Description = $ord['Brief_Description'];
+			}
+			unset($Options);
+			for ($f=0;$ops_exp[$f];$f++){
+				$option_type = get_field_val("Product_Options","Option_Type","Name = '".$ops_exp[$f][0]."'");
+				if ($option_type == "Textarea Input" || $option_type == "Text Input") {
+					$popup_width = get_field_val("Product_Options","Checkout_Popup_Width","Name = '".$ops_exp[$f][0]."'");
+					$popup_height =get_field_val("Product_Options","Checkout_Popup_Height","Name = '".$ops_exp[$f][0]."'");
+					$popup_scrollbars = get_field_val("Product_Options","Checkout_Popup_Scrollbars","Name = '".$ops_exp[$f][0]."'");
+					$popup_resizable = get_field_val("Product_Options","Checkout_Popup_Resizable","Name = '".$ops_exp[$f][0]."'");
+					if (!$popup_width) $popup_width = "100";
+					if (!$popup_height) $popup_height = "100";
+					$option_detail_link = Popup_Window($SC['cart_www_root']."/option_text_popup.php?item=$i&option=$f",$ops_exp[$f][0],$popup_width,$popup_height,$popup_scrollbars,$popup_resizable);
+					$Options = $Options.$option_detail_link.": <br>";
+				} else {
+						$Options = $Options.$ops_exp[$f][0].": ".$ops_exp[$f][1]."<br>";
+				}
+			}
+			if ($ord['Base_Price']){
+				$Base_Price = $currency_sym.$ord['Base_Price'];
+			} else {
+				unset($Base_Price);
+			}
+			// ---------- total options price and weight ------------------------//
+			unset($options_total);
+			unset($options_weight_total);
+			unset($Options_Price);
+			for ($f=0;$ops_exp[$f];$f++){
+				$options_total = $options_total + $ops_exp[$f][2];									// total price of options
+				if(is_numeric($ops_exp[$f][3])) $options_weight_total = $options_weight_total + $ops_exp[$f][3];		// total weight of options
+				if($ops_exp[$f][2] == "----" || $ops_exp[$f][2] == "") {
+					$currency = "" ;
+				} else {
+					$currency = $Currency_Sym;
+				}
+				$Options_Price = $Options_Price."$currency".$ops_exp[$f][2]."<br>\r";
+			}
+			// ------------ $item_total is total of all options and base price for one item
+			$Item_Total = $SC['order'][$i]['item_total'];
+			// ------------ $item_subtotal is total of $item_total multiplied by the quantity ordered
+			$Item_Subtotal = $SC['order'][$i]['item_subtotal'];
+			$Quantity = "Quantity: <input size=\"1\" name=\"quantity[]\" value=\"$ord[qty]\">";
+			//----------- $item_weight_total is total weight of item plus total weight of options ----------//
+			$Item_Weight_Total = $SC['order'][$i]['item_weight_total'];
+			// ------------ $weight_subtotal is total of $item_weight_total multiplied by the quantity ordered
+			$Item_Weight_Subtotal = $SC['order'][$i]['item_weight_subtotal'];
+			$Item_Tax_Total = $SC['order'][$i]['item_tax_total'];
+			//------------------ END OF setting variables for 1 item  -----------------------------------------
+			//------------- Include template to display 1 item -------------------------------
+			include $SC['templates']['view_cart_item'];
+		}
+		
+		$Product_Total = $SC['order']['product_total'];
+		$Shipping_Total = $SC['order']['shipping']['cost'];
+		$Tax_Total = $SC['order']['tax_total'];
+		if ($Tax_Total) {
+			$state_name = get_field_val("States","Name","record_number = ".$SC['order']['Ship_Addr']['State_or_Province']);
+			$tax_percent = get_field_val("Sales_Tax","Tax","State = ".$SC['order']['Ship_Addr']['State_or_Province']);
+			$Tax_Description = "$state_name $tax_percent% Sales Tax:";
+		}
+		if(!$Shipping_Total) $Shipping_Total = " TBD";
+		$Grand_Total = $SC['order']['grand_total'];
+		include $SC['templates']['view_cart_footer'];
+	}
+	print "</span>\r";
+}
+?>

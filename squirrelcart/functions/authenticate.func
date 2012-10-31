@@ -1,0 +1,27 @@
+<?
+// purpose of function is to connect to the Squirrelcart DB using info stored in the session
+// this function added on 10/29/02 for v1.1.0 and replaces the authenticate.php file from previous versions
+// file modified on 7/22/03 to remove references to username and password in $SC
+// file modified on 12/4/03 for better error reporting
+	function authenticate() {
+	global $link,$sql_host,$db,$sql_username,$sql_password;
+		$error_no_mysql = "<b>Squirrelcart Error: </b>This PHP installation does not have MySQL support.";
+		$error_no_connect = "<b>Squirrelcart Error: </b>Failed to connect to MySQL. Check your username, password, and sql host in your configuration.";
+		$error_no_select_db = "<b>Squirrelcart Error: </b>failed to connect to database. Check your configuration.";
+		if (function_exists("mysql_connect")) {
+			if($sql_host){
+				$dbhost = $sql_host;
+				$dbname = $db;
+				$dbuser = $sql_username;
+				$dbpasswd = $sql_password;
+				}
+			$link = @mysql_connect($dbhost, $dbuser, $dbpasswd)
+				or die ($error_no_connect);
+			mysql_select_db ($dbname)
+				or die ($error_no_select_db);
+		} else {
+			print $error_no_mysql;
+			die;
+		}
+	}
+?>

@@ -1,0 +1,97 @@
+<?
+// purpose of function is to take items currently in cart, and figure out how many packages they will
+// require, what items will be in what packages, and how much each package weighs
+// this function then returns the info as an array, as follows:
+// $pkgs[] - each element in this array is a sep. pkg. keys are incremental starting at 0
+// $pkgs[]['weight'] - weight of this pkg
+// $pkgs[]['items'] - this is an array. each element contains the index number for the item in the pkg, like so:
+// $pkgs['qlfy_media_mail'] - set to 1 if the entire order qualifies for USPS media mail
+// $pkgs['qlfy_bpm'] - set to 1 if the entire order qualifies for USPS media mail
+//		$pkgs[0]['items'][0] = 1;     - item number 1 in package 0
+//		$pkgs[0]['items'][1] = 2;     - item number 2 in package 0
+//		$pkgs[0]['items'][2] = 6;     - item number 6 in package 0
+//		$pkgs[1]['items'][0] = 3;     - item number 3 in package 1
+//		$pkgs[1]['items'][1] = 4;     - item number 4 in package 1
+//		$pkgs[1]['items'][2] = 5;     - item number 5 in package 1
+
+
+function pack_order($order,$max_pkg_weight=70,$test=0){
+	if($test) print "<br><br>";
+	// loop through each item in the cart...
+	for($x=0;$order[$x];$x++){
+		$item = $order[$x];			// contains actuall item info
+		$item_i = $item['session_index']; 						// index of item in $SC[order] variable
+		// below loop just runs packing seq. multiple times if qty is more than 1
+		for($i=1;$i <= $item['qty'];$i++){
+			$new_pkg_weight = $pkg['weight'] + $item['Weight'];  // set proposed weight of package, with the current item added into it
+			if($item['Ship_Separately']){
+				// create a new package, with the current item in it because it is being shipped separately
+					$sep_pkg['items'][] = $item_i; 
+					$sep_pkg['weight'] = $item['Weight'];
+					$pkgs[] = $sep_pkg;
+					unset($sep_pkg);
+					if($test) print "shipping item $item_i  (".$item['Name'].") separately.<br>";
+			} else {
+				if($new_pkg_weight <= $max_pkg_weight){
+					// if here, then current item is going to be added to the current package
+					$pkg['weight'] = $new_pkg_weight;	// set new weight of current package
+					$pkg['items'][] = $item_i;		// add item index number to current package
+					if($test) print "adding item $item_i (".$item['Name'].") to package...<br>";
+				} else {
+				// package was too heavy with current item in it, so.....
+					$pkgs[] = $pkg;		// complete pkg without the current item in it
+					unset($pkg);
+					$pkg['weight'] = $item['Weight'];		// then create a new pkg, with the current item in it
+					$pkg['items'][] = $item_i;		// add item index number to current package
+					if($test) print "pkg too heavy...adding item $item_i  (".$item['Name'].") to new package...<br>";
+				}
+			}
+		}
+		// check each item, and determine if it qualifies for USPS Media Mail or Bound Printed Matter. 
+		// The variables being set will determine if the entire order qualifies for these special cases
+		// based on fields on the product records. If the entire order qualifies, then Media Mail and/or BPM will be
+		// offered to the customer. If 1 item does not qualify, then they will not be offered.
+		if (!$media_mail_failed) {
+			if ($item['Qlfy_Media_Mail']) {
+				$qlfy_media_mail = 1;
+			} else {
+				$media_mail_failed = 1;
+				unset ($qlfy_media_mail);
+			}
+		}
+		if (!$bpm_failed) {
+			if ($item['Qlfy_BPM']) {
+				$qlfy_bpm = 1;
+			} else {
+				$bpm_failed = 1;
+				unset($qlfy_bpm);
+			}
+		}
+	}
+	// store special case shipping qualifiers in pkgs array
+	$pkgs['qlfy_media_mail'] = $qlfy_media_mail;
+	$pkgs['qlfy_bpm'] = $qlfy_bpm;
+	// store all items in the $pkgs array for use in other functions
+	$pkgs['items'] = $order;
+	// get last package, and place it in the $pkgs array
+	if($pkg) {
+		$pkgs[] = $pkg;
+		unset($pkg);
+	}
+	// test section to display what is in each pkg
+	if($test) {
+		print "<br>";
+		for($x=0;isset($pkgs[$x]);$x++){
+			$pkg = $pkgs[$x];
+			print "Package $x:<br>";
+			print "&nbsp;&nbsp;Pkg weight is: ".$pkg['weight']."<br>";
+			for($i=0;isset($pkg['items'][$i]);$i++){
+				$item_i = $pkg['items'][$i];
+				print "&nbsp;&nbsp;item index is ($item_i) for item named \"".$order[$item_i]['Name']."\"<br>";
+			}
+			print "<br>";
+		}
+	}
+	return $pkgs;
+}
+?>

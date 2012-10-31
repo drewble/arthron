@@ -1,0 +1,42 @@
+<?
+// purpose of function is to handle the process of emptying the cart
+
+function delete_cart(){
+global
+$SC,$del_cart_cancel,$del_cart_confirm,$show_cart;
+
+if($del_cart_cancel) {
+	$SC['cart_content'] = "Opertation canceled.";
+	$show_cart=1;
+		} else {
+		if(!$del_cart_confirm) {
+		// give customer a chance to cancel emptying the cart
+			$SC[cart_content] = "<FORM action=\"\" method=\"post\">\r
+				Are you sure you want to empty your cart?<br>
+				<input type=\"submit\" name=\"del_cart_confirm\" value=\"Yes\">\r
+				<input type=\"submit\" name=\"del_cart_cancel\" value=\"No\">\r
+				<input type=\"hidden\" name=\"delete_cart\" value=\"1\">\r
+				</form>\r";
+			} else {
+			// user has confirmed they want cart emptied
+			// put all products back into inventory IF inventory control is enabled
+				if($SC['inventory_control']){
+					// loop through all items in cart
+					for($x=0;$SC['order'][$x];$x++){
+						$item = $SC['order'][$x];
+						$num_in_cart = $item['qty'];
+						$num_in_stock = get_field_val("Products","Number_in_Stock","record_number = '".$item['record_number']."'");
+						$new_num_in_stock = $num_in_cart + $num_in_stock;
+						// update inventory
+						set_field_val("Products","Number_in_Stock",$new_num_in_stock,"record_number = '".$item['record_number']."'");
+					}
+				}
+				unset($SC["order"]);
+				$SC[cart_content] = "Cart Emptied<br>";
+				}
+
+	}
+}
+
+// modififed on 09/25/02 for v1.0.9 to enable inventory control
+?>

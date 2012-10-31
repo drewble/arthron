@@ -1,0 +1,43 @@
+<?
+// purpose of function is to return the relative value based on a record number
+// for a field defined by a record in the Field_Definition table, with Input_Choices_Source set as "Field Values"
+function get_rel_value($table,$field,$rn){
+	$field_def = get_records("Field_Definition","*","Table_Name = '$table' AND Field_Name = '$field' AND Input_Choices_Source = 'Field Values'");
+	$field_def = $field_def[0];
+	if ($field_def) {
+		$source_table = $field_def[Choices_Source_Table];
+		$source_field = $field_def[Choices_Source_Field];
+		$value = get_field_val($source_table,$source_field,"record_number = '$rn'");
+		return $value;
+	} else {
+		// this variable should contain the relationship info, if the table we are on is the table specified as "table 1" in the relationship
+			$relationship_as_tb2 = get_records("Relationship","Field_From_Table_1_Representing_Relationship, Table_1","Table_2 = '$table' AND Manage_With_Table_2_Field = '$field'",0,0);
+			$relationship_as_tb2 = $relationship_as_tb2[0];
+		// this variable should contain the relationship info, if this table is "table 2"
+			$relationship_as_tb1 = get_records("Relationship","Field_From_Table_2_Representing_Relationship, Table_2","Table_1 = '$table' AND Manage_With_Table_1_Field = '$field'",0,0);
+			$relationship_as_tb1 = $relationship_as_tb1[0];
+		// this variable should containe the relationship info in the table we are on is actualy the "Relationship_Table" (starts with REL...)
+			$relationship_as_REL_tb = get_records("Relationship","Field_From_Table_1_Representing_Relationship,Field_From_Table_2_Representing_Relationship,Table_1,Table_2","Relationship_Table = '$table'");
+			$relationship_as_REL_tb = $relationship_as_REL_tb[0];
+		
+		if ($relationship_as_tb1) {
+			// if in this section, then we need to get the relative value of this field as it appears in the record in "table 2"
+				$relationship = $relationship_as_tb1;
+				$value = get_field_val($relationship[Table_2],$relationship[Field_From_Table_2_Representing_Relationship],"record_number = '$rn'");
+		}
+		if ($relationship_as_tb2) {
+			// if in this section, then we need to get the relative value of this field as it appears in the record in "table 1"
+				$relationship = $relationship_as_tb2;
+				$value = get_field_val($relationship[Table_1],$relationship[Field_From_Table_1_Representing_Relationship],"record_number = '$rn'");
+		}
+		if ($relationship_as_REL_tb) {
+			$relationship = $relationship_as_REL_tb;
+			if ($field == "Table_1") $qry_fields = $relationship[Field_From_Table_1_Representing_Relationship];
+			if ($field == "Table_2") $qry_fields = $relationship[Field_From_Table_2_Representing_Relationship];
+			$value = get_field_val($relationship[$field],$qry_fields,"record_number = '$rn'");
+		}
+		return $value;
+	}
+	
+}
+?>

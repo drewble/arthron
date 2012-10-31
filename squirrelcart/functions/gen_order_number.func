@@ -1,0 +1,22 @@
+<?
+// file modified on 6/18/2003 for v1.1.1 to support custom order numbers
+//
+// purpose of function is to generate a unique order number OR custom order number
+function gen_order_number(){
+	$format = get_field_val("Store_Information","Order_Number_Format");
+	if ($format == "Random") {
+		$ord_num = date(U);
+	} else {
+		// set order number to next order number in store information table
+		$ord_num = get_field_val("Store_Information","Next_Order_Number");
+		$increment = get_field_val("Store_Information","Order_Number_Increment");
+		// increment of 0 doesn't make sense, so fix that scenario below
+		if ($increment < 1) $increment = 1;
+		// set next order number
+		$next_ord_num = $ord_num + $increment;
+		// store next order number in store information table		
+		set_field_val("Store_Information","Next_Order_Number",$next_ord_num,"record_number = '1'");
+	}
+	return $ord_num;
+}
+?>

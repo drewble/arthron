@@ -1,0 +1,17 @@
+<?
+// file modified on 12/09/2003 for v1.4.0 - fixes problem with admin page failing to logout properly
+function logout(){
+global $SC,$HTTP_SESSION_VARS;
+	unset ($SC['user']);
+	unset ($SC['order']['Bill_Addr']);
+	unset ($SC['order']['Ship_Addr']);
+	unset($SC['order']['shipping']);	// unset shipping method chosen
+	unset($SC['theme_rn']);
+
+	unset ($HTTP_SESSION_VARS['sc']['user']);
+	unset ($HTTP_SESSION_VARS['sc']['order']['Bill_Addr']);
+	unset ($HTTP_SESSION_VARS['sc']['order']['Ship_Addr']);
+	unset($HTTP_SESSION_VARS['sc']['order']['shipping']);	// unset shipping method chosen
+	unset($HTTP_SESSION_VARS['sc']['theme_rn']);
+}
+?>

@@ -1,0 +1,73 @@
+<?
+// 03/17/2003 - added in v1.1.0
+// 12/10/2003 - fixed numbers to appear as decimals with 2 decimal places, and comma thousand separator
+// Purpose: to display order stats after login on admin page
+function show_order_stats(){
+	global $SESSION;
+	// get order stats for today
+	$today = date( "Y-m-d", time() );
+	$todays_orders = get_records("Orders","*","Order_Date LIKE '$today%'");
+	for($i=0;$todays_orders[$i];$i++){
+		$order = $todays_orders[$i];
+		$tdy_orders['Product_Total'] = $tdy_orders['Product_Total'] + $order['Product_Total'];
+		$tdy_orders['Number_of_Orders'] = $tdy_orders['Number_of_Orders'] + 1;
+	}
+	if (!$tdy_orders['Product_Total']) {
+		$tdy_orders['Product_Total'] = "0.00";
+		$tdy_orders['Number_of_Orders'] = "0";
+	} else {
+		$tdy_orders['Product_Total'] = $tdy_orders['Product_Total'];
+	}
+	
+	$tdy_orders['Product_Total'] = number_format($tdy_orders['Product_Total'],2);
+
+	print"
+	<table width='40%' border=0 cellpadding=4 cellspacing=0 style='border: solid black 1px'>
+	<tr bgcolor='#000080' style='color: white; font-weight: bold'>
+	<td width='33%'>Today</td><td align='right' width='33%'>Total Sales</td><td align='right' width='33%'>Total Orders</td>
+	</tr>";
+	print "<tr><td style='border-bottom: solid silver 1px'>$today</td>";
+	print "<td style='border-bottom: solid silver 1px' align='right'>".$SESSION['currency'].$tdy_orders['Product_Total']."</td>";
+	print "<td style='border-bottom: solid silver 1px' align='right'>".$tdy_orders['Number_of_Orders']."</td>";
+	print "</tr>";
+	print "</table>";
+	print "<br>";
+
+
+
+	// get all order stats
+	$orders = get_records("Orders","*",0,"Order_Date");
+	for($i=0;$orders[$i];$i++){
+		$order = $orders[$i];
+		$date = strtotime($order['Order_Date']);
+		$date = getdate($date);
+		if ($stat['month'] != $date['month'] && $stat) {
+			$stats[] = $stat;
+			unset($stat);
+		}
+		$stat['year'] = $date['year'];
+		$stat['month'] = $date['month'];
+		$stat['Product_Total'] = $stat['Product_Total'] + $order['Product_Total'];
+		$stat['Number_of_Orders'] = $stat['Number_of_Orders'] + 1;
+	}
+	$stats[] = $stat;
+
+	if ($orders) {
+		print"
+		<table width='40%' border=0 cellpadding=4 cellspacing=0 style='border: solid black 1px'>
+		<tr bgcolor='#000080' style='color: white; font-weight: bold'>
+		<td width='33%'>Month</td><td align='right' width='33%'>Total Sales</td><td align='right' width='33%'>Total Orders</td>
+		</tr>";
+	}
+	for($i=0;$stats[$i];$i++){
+		$stat = $stats[$i];
+		$stat['Product_Total'] = number_format($stat['Product_Total'],2);
+
+		print "<tr><td style='border-bottom: solid silver 1px'>".$stat['month'].", ".$stat['year']."</td>";
+		print "<td style='border-bottom: solid silver 1px' align='right'>".$SESSION['currency'].$stat['Product_Total']."</td>";
+		print "<td style='border-bottom: solid silver 1px' align='right'>".$stat['Number_of_Orders']."</td>";
+		print "</tr>";
+	}
+	print "</table>";
+}
+?>

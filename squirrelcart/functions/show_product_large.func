@@ -1,0 +1,13 @@
+<?
+function show_product_large($rn){
+	global
+	$SC;
+	$query = "SELECT Large_Image, Name FROM Products WHERE record_number = \"$rn\"";
+	$result = mysql_query($query);
+	$row = mysql_fetch_array ($result);
+	$record = $row;
+	$Large_Image = $record["Large_Image"];
+	$Name = $record["Name"];
+	include $SC[templates][show_product_large_image];
+	}
+?>

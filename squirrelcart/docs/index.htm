@@ -1,0 +1,867 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+	<title>Squirrelcart Documentation</title>
+	<link rel='stylesheet' type='text/css' href='default.css'>
+</head>
+
+<BODY>
+<a name="top"></a>
+<div class="sectionheader">Squirrelcart Version 1.4.0 Documentation</div>
+<div align="center" style="font-size:10pt">
+<a href="#install">Initial Installation</a><br>
+<a href="#upgrade">Upgrading From a Previous Installation</a><br>
+<a href="#store_settings">Store Settings</a><br>
+<a href="#customization">Customization</a><br>
+<a href="#templates">Templates and Themes</a><br>
+<a href="#products">Products and Categories</a><br>
+<a href="#shipping">Shipping Options</a><br>
+<a href="#payment">Payment Options</a><br>
+<a href="#tax">Sales Tax</a><br>
+<a href="#inventory_control">Inventory Control</a><br>
+<a href="#backup">Backing up Squirrelcart</a><br><br>
+</div>
+<div class="sectionheader">
+<a name="install" id="install">Initial Installation steps</a><br>
+</div>
+The MySQL tasks below should be done via your web host's control panel, or via a SSH connection<br>
+<b>1.</b>	Create an empty MySQL DB. The name can be anything you like, but is preferably "squirrelcart"<br>
+<b>2.</b>	Create a MySQL User. The name and password can be anything you like<br>
+<b>3.</b>	Add user to DB<br>
+<br>The MySQL tasks below should be done via phpMyAdmin, which is offered by most web hosts in your control panel. If you do not have access to phpMyAdmin, you can obtain it at its homepage, at <a href="http://phpwizard.net">http://phpwizard.net</a>.<br>
+<b>4.</b>	Import DB by running MySQL query via the *.sql file included in the root folder of the Squirrelcart distribution. See image below for details:<br><br>
+<div class="indent"><img width="725" height="426" src="install_img.jpg"></div><br><br>
+<b>5.</b>	Upload "squirrelcart" folder to the WWW root<br>
+<b>6.</b>	Upload the contents of the images folder into the folder you store your images in. CHMOD each folder to 777:<br>
+<span class="indent">
+	a.  content<br>
+	b.	categories<br>
+	c.	products<br>
+	d.	product_options<br>
+	e.	product_options\names<br>
+	f.  demo_store.jpg<br>
+	g.  sc_logo_80_percent.jpg<br>
+</span>
+<b>7.</b>	Upload the "store.php" and "home.php" files into your web root.<br>
+<b>8.</b>	Edit the "Config Section" at the top of the config.php file in the squirrelcart folder, and set these variables accordingly. See comments in file for specific details.<br>
+<span class="indent">
+	a.	$site_www_root = "http://www.mydomain.com";<br>
+	b.	$site_isp_root = "/home/myaccount/www";<br>
+	c.	$site_secure_root = "https://mydomain.com";<br>
+	d.	$cart_page = "/store.php";<br>
+	e.	$img_path = "/images";<br>
+	f.	$sql_host = "sportsin.ipowermysql.com";<br>
+	g.	$sql_username = "username";<br>
+	h.	$sql_password = "password";<br>
+	i.	$db = "squirrelcart";<br>
+</span>
+<b>9.</b>	Open the URL to the demo page, http://YOURDOMAINNAME.COM/store.php. If you do not get an error message, and can browse through the categories correctly, then you have finished this portion of the setup. Login with account "admin" and password "password", and continue to the next section.<br>
+<br><b>Note:</b> if you experience any problems with this setup, please open a helpdesk ticket. Information for obtaining support can be found on our support page: <a href="http://squirrelcart.com/support.php">http://squirrelcart.com/support.php</a>.
+<br>
+<a href="#top">&lt;Back to Top&gt;</a>
+<br>
+
+
+<!---------------------------------- upgrading section ------------------------------------>
+<br><br>
+<div class="sectionheader"><a name="upgrade">Upgrading From a Previous Installation</a></div>
+Before performing an upgrade we HIGHLY recommend backing up your installation. For backup instructions, <a href="#backup">see this link</a>.<br>
+
+The process below will temporarily take the store offline.<br><br>
+<div class="indent"><b>Important Note!</b> - If you are upgrading from v1.1.0 to v1.2.0, <a href="1.2.0_upgrade_info.html" target="blank">click here</a> for important information and refer to item #1.</div>
+<div class="indent"><b>Important Note!</b> - If you are upgrading from v1.2.0 to v1.3.0, <a href="1.3.0_upgrade_info.html" target="blank">click here</a> for important information.</div>
+<b>1.</b> Rename your existing "squirrelcart" folder to "squirrelcartOLD"<br>
+<b>2.</b> Follow steps 5, 7, and 8 in the <a href="#install">initial installation instructions</a> to upload the new squirrelcart folder. You can refer to your old config file for reference ("squirrelcartOLD/config.php").<br>
+<b>3.</b> If you see a new directory listed in step 6 of the installation instructions, then you must copy that directory to your images folder, and CHMOD it 77<b>7.</b><br>
+<b>4.</b> If you created a custom theme, then you must copy its folder from "squirrelcartOLD/themes" to "squirrelcart/themes". <br>
+<div class="indent"><b>Very important - </b>DO NOT COPY THE ORIGINAL SQUIRRELCART THEME FOLDER INTO THE NEW INSTALL!!!!</div>
+<b>5.</b> To upgrade your DB, you must first determine what version of squirrelcart you are currently running. This should be listed in the "Release Notes.txt" file that came with your distribution. The version number also appears in your admin menu in v1.0.7 and newer.<br>
+<b>6.</b> Once you have determined what version you are upgrading from, download the corresponding upgrade file(s) from our support page - http://squirrelcart.com/support.php. The files are named with the version number at the beginning.<br>
+For example, the file "1.0.5_to_1.0.6_upgrade.sql" will upgrade your DB from v1.0.5 to v1.0.6. If you are more than 1 version behind, you will need to apply each upgrade file in ascending order.<br>
+<div class="indent"><b>Important Note!</b> - If you are upgrading from v1.1.0 to v1.2.0, <a href="1.2.0_upgrade_info.html" target="blank">click here</a> for important information and refer to item #2.</div>
+To apply the upgrade file to your DB, click on your database in phpMyAdmin, match the settings in the image below (for your upgrade file), and click "Go".<br><br>
+<div class="indent"><img width="540" height="219" src="upgrade_img.jpg"></div><br>
+<a href="#top">&lt;Back to Top&gt;</a>
+
+
+<!---------------- Store Settings Section ------------------->
+<div class="sectionheader"><a name="store_settings">Store Settings</a><br></div>
+<img style="float: left" width="142" height="62" src="store_settings_icon.jpg">
+There are many important settings that you can configure via your store settings page. To get to it, click the icon displayed in the example image. The majority of the field names can be clicked on, and will pop up a window with help regarding that specific field. You should look over this page carefully, and make changes accordingly.
+<br>
+<br>
+<br>
+<br>
+<a href="#top">&lt;Back to Top&gt;</a>
+<br>
+<br>
+
+
+
+<!---------------- Customization Section ------------------->
+
+<div class="sectionheader"><a name="customization">Configuration and Customization</a><br></div>
+Squirrelcart is designed so that it can function within the existing design of your site, or as the entire site itself. Please take a good look at the source of the store.php file (not through a browser, use an editor). This page is your "cart page" and controls the functionality of the cart. 
+To those not familiar with PHP, the sections that are pertaining to squirrelcart are those that are enclosed by "&lt;? ?&gt;" tags. For the cart to operate, the code between these tags on the demo page needs to be in your homepage, and the file needs to have a .php extension. You can put the code for the cart on a page other than your homepage, but we recommend using your homepage if possible. Let's look at each piece of the demo page, and make some sense of it.<br>
+<br>
+In the examples below, the HTML is depicted in blue, and the PHP code is depicted in green. The explanations are in red, and apply to the code displayed in green directly below.<br>
+<br>
+<div class="code">
+<div width="100%" align="center">
+<div class="examplename">Figure 1: Explanation of store.php page</div>
+<div style="width: 750; border: black solid 1px; padding: 10; text-align: left">
+<div class="comment">The line below includes the main cart file that makes squirrelcart work.</div>
+<div class="html">
+<div class="php">&lt;? include "squirrelcart/config.php";?&gt;<br></div>
+	<br>
+	&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML <b>4.</b>0 Transitional//EN"&gt;<br>
+	<br>
+	&lt;html&gt;<br>
+	&lt;head&gt;<br>
+		&lt;title&gt;Squirrelcart Demo Store&lt;/title&gt;<br>
+</div>
+<div class="comment">
+	The two lines below include the stylesheets for the store<br>
+</div>
+<div class="html">
+	<div class="php">
+		&lt;? stylesheet("store.css"); ?&gt;<br>
+	</div><br>
+	&lt;/head&gt;<br>
+	
+	&lt;BODY&gt;<br>
+	
+	&lt;div align="center"&gt;<br>
+	
+	&lt;table width="800" border="0"&gt;<br>
+	&lt;tr&gt;<br>
+	&lt;td valign="top" width="150" style="padding-top: 3"&gt;<br>
+</div>
+<div class="comment">
+	The line below displays the navigation that appears to the left of the demo page. The design of this is controlled by the "window.php" template. <br>For more info on templates, see the templates section.<br>
+</div>
+<div class="html">
+	<div class="php">
+		&lt;? eval(content_container("Left Navigation"))?&gt;<br>
+	</div><br>
+		&lt;/td&gt;<br>
+		&lt;td  width="100%" valign="top"&gt;<br>
+			&lt;table width="100%"&gt;<br>
+				&lt;tr&gt;<br>
+					&lt;td class="content" style="padding: 0"&gt;<br>
+						&lt;img src="images/sc_logo_80_percent.jpg" alt="Squirrelcart"&gt;<br>
+						&lt;img src="images/demo_store.jpg" alt="Demo Store"&gt;<br>
+					&lt;/td&gt;<br>
+				&lt;/tr&gt;<br>
+			&lt;/table&gt;<br>
+		</div>
+<div class="comment">
+	The section below shows the page "home.php" when someone accesses your site using your web address only. For example, if they go to http://yoursite.com, they will see the contents of home.php in this section. If they click a link to view something in the cart, they will not see this page.<br>
+</div>
+<div class="html">
+	<div class="php">
+			&lt;?<br>
+				if ($SESSION['show_home_page']) {<br>
+					include "home.php";<br>
+				} else {<br>
+			?&gt;<br>
+	</div><br>
+			&lt;table width="100%" border="0"&gt;<br>
+				&lt;tr&gt;<br>
+					&lt;td style="padding-bottom: 3; padding-top: 0"&gt;<br>
+
+</div>
+<div class="comment">
+	The section below shows "bread crumb" navigation. These are links to previous pages that you have been to, in this format:<br><br>
+	Page 1: Page 2: Page 3...
+</div>
+<div class="html">
+	<div class="php">
+						&lt;? include "$cart_isp_root/crumb_navigation.php" ?&gt;<br>
+	</div>
+					&lt;/td&gt;<br>
+				&lt;/tr&gt;<br>
+				&lt;tr&gt;<br>
+					&lt;td class="content"&gt;<br>
+</div>
+<div class="comment">
+	The section below displays the main content section of the cart. This is where the products are displayed, where check out occurs, and all other major functionality of the cart takes place
+</div>
+<div class="html">
+
+		<div class="php">
+						&lt;?<br>
+							// Cart Content section<br>
+							include "$cart_isp_root/cart_content.php" ;<br>
+						?&gt;<br>
+		</div>
+					&lt;/td&gt;<br>
+				&lt;/tr&gt;<br>
+			&lt;/table&gt;<br>
+	<div class="php">
+			&lt;? } ?&gt;<br>
+	</div>
+			&lt;br&gt;<br>
+			&lt;a target="new" href="http://www.squirrelcart.com"&gt;&lt;img border="0" width="119" height="37" src="squirrelcart/images/cart/powered_by_squirrelcart.gif" alt="Powered by Squirrelcart"&gt;&lt;/a&gt;<br>
+		&lt;/td&gt;<br>
+		&lt;td valign="top" width="150" style="padding-top: 3"&gt;<br>
+
+</div>
+<div class="comment">
+	The section below displays the right hand navigation, which by default will display a preview of the category you are viewing, your top ten best selling items, etc....
+</div>
+<div class="html">
+
+		<div class="php">
+			&lt;?<br>
+				// Right Navigation section<br>
+				eval(content_container("Right Navigation"));<br>
+			?&gt;<br>
+		</div>
+		&lt;/td&gt;<br>
+&lt;/tr&gt;<br>
+&lt;/table&gt;<br>
+&lt;/div&gt;<br>
+<br>
+</div>
+<div class="comment">
+	The section below displays a link back to Squirrelcart, which can be customized in your store settings.
+</div>
+<div class="html">
+<div class="php">
+	&lt;?<br>
+	// This is a link back to Squirrelcart.com.<br>
+	squirrelcart_link();<br>
+	?&gt;
+</div>
+<br>
+&lt;/BODY&gt;<br>
+&lt;/HTML&gt;<br>
+<div class="php">
+&lt;? <br>
+	<div style="margin-left: 10px">
+		// session variable storage....do not remove or move this section! it must be after your closing HTML tag<br>
+		$HTTP_SESSION_VARS['sc'] = $SC; <br>
+	</div>
+?&gt;
+</div>
+</div>
+</div>
+</div>
+<br>
+<br>
+<br>
+<div width="100%" align="center">
+<div class="examplename">Figure 2: Explanation of home.php page</div>
+<br>
+If you read the code comments above carefully, the file "home.php" is displayed when someone first visits your cart page, without clicking any links. <br>
+This page contains special code which by default only appears when someone visits the cart page initially. <br>
+Here is an explanation of the code in "home.php':
+<div style="width: 750; border: black solid 1px; padding: 10; text-align: left">
+<div class="html">
+&nbsp;&nbsp;&lt;table width="100%"&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;tr&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;td class="content"&gt;<br>
+</div>
+<div class="comment">
+	The section below displays your best selling item.
+</div>
+<div class="html">
+		<div class="php">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Best Seller (Single Item) section<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// code below will display your top selling item<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;show_best_sellers(1, $SESSION['templates']['best_seller_single']);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?&gt;<br>
+</div>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/td&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;/tr&gt;<br>
+&nbsp;&nbsp;&lt;/table&gt;<br>
+&nbsp;&nbsp;&lt;table width="100%"&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;tr&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;td class="content"&gt;<br>
+</div>
+<div class="comment">
+	The section below displays a subset of your newest items. The number of items displayed in this section is controlled in your store settings by the field "New Products per Preview".
+</div>
+<div class="html">
+		<div class="php">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// New Product Preview section<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// code below will display a preview of new products in your catalog<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new_product_preview();<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?&gt;<br>
+</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/td&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;/tr&gt;<br>
+&nbsp;&nbsp;&lt;/table&gt;<br>
+&nbsp;&nbsp;&lt;table width="100%"&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;tr&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;td class="content"&gt;<br>
+</div>
+<div class="comment">
+	The section below will displays your categories, with their descriptions.
+</div>
+<div class="html">
+		<div class="php">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;?<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Category Detail section<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// code below will show all categories in cart for browsing<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;show_categories_detail();<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?&gt;<br>
+</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/td&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;/tr&gt;<br>
+&nbsp;&nbsp;&lt;/table&gt;<br>
+</div>
+</div>
+</div>
+	<br><br>
+
+	<a href="#top">&lt;Back to Top&gt;</a><br>
+	<br>
+	
+
+	
+	
+	
+<!-------------- templates / themes section --------------------->
+<div class="sectionheader"><a name="templates">Templates and Themes</a></div>
+<img style="float: right" src="themes_menu.jpg" width="376" height="268">
+Customizing your cart's look and feel is done through the use of templates and themes.<br><br>
+<b>Template definition:</b> A <em>Template</em> is a file that controls a specific aspect of the cart. There are over 50 template files that control the look and feel of Squirrelcart. Each one is named according to the aspect of the cart that it controls. 
+For example, "show_product.php" controls how a product is displayed.<br><br>
+<b>Theme definition:</b> A <em>Theme</em> is a set of template files designed to be used together to obtain a certain look and feel.
+ Each theme has a unique name to describe it.<br>
+ <br>
+<b>Changing the default theme:</b> You can set a default theme for the cart using the "Default Theme" field on your <a href="#store_settings">store settings</a> page. 
+ All customers that enter your store will see this theme by default.<br><br>
+<b> Changing a user's theme:</b>
+ A customer can change their theme after they logon in the "Account Options" navigation box, without changing the default theme of your store. 
+ The cart will remember the theme they choose, and store it in their user record. Every time they log in, they will see the cart using the theme they have selected.
+ To do this, they must first logon on your cart page, and then change the theme using the drop down box.
+ If you are logged on as a Store Admin, 
+ and choose the "Change current theme..." link in the menu system, it will change the theme for the account that you are currently logged in with. 
+ It will not change the default theme.
+<br>
+<br>
+Each theme has a record in the "Themes" table, and a folder within the "squirrelcart/themes" folder, as in this example:
+<br>
+<div class="indent">
+squirrelcart/themes/brushed_steel<br>
+squirrelcart/themes/squirrelcart<br>
+squirrelcart/themes/supersquirrel<br>
+squirrelcart/themes/tigerframe</div><br>
+
+<b>Important Note:</b> Squirrelcart is the built in theme, and the templates within that folder should <b>NEVER</b> be modified!
+<br><br>
+
+<b>Template Logic: </b>
+When the cart needs a template in order to format content for your browser, it checks for that template file in the following locatons, in the order specified, stopping when it finds the template file it needs:
+<div class="indent">
+	- the theme the user has specified (and is set in the user's record)<br>
+	- the default theme specified in your store settings<br>
+	- the Squirrelcart theme
+</div>
+Because of this, if you decide you do not like the template you modified you can delete it, and the cart will revert back to the built in template in the Squirrelcart theme.<br>
+<br>
+<b>Template Structure:</b>
+<br>
+The majority of the content of a template file will be HTML. You can add any standard HTML tags to the templates to obtain the look you desire. 
+Squirrelcart replaces the code that appears between the <span style="color: green; font-weight: bold">&lt;? ?&gt;</span> symbols with data from the cart. 
+For example, the show_product.php template looks like this:<br>
+<br>
+<div class="html">
+&lt;td height="190"&gt;<br>
+<div style="margin-left: 10px">
+	&lt;form action="<span style="color: green">&lt;?=$Form_Action?&gt;</span>" method="post"&gt;<br>
+		<div style="margin-left: 10px">
+				&lt;a href="<span style="color: green">&lt;?=$Detail_Link?&gt;</span>"&gt;&lt;img border="0" src="<span style="color: green">&lt;?=$Thumbnail_Image?&gt;</span>"&gt;&lt;/a&gt;<br>
+				&lt;br&gt;<br>
+				&lt;div style="font-size: 8pt"&gt;<br>
+					<div style="margin-left: 10px">
+						<div style="color: green">
+							&lt;?=$Name?&gt;<br>
+							&lt;?=$Admin_Link?&gt;<br>
+						</div>
+					</div>
+				&lt;/div&gt;<br>
+				&lt;a style="font-size: 7pt" href="<span style="color: green">&lt;?=$Detail_Link?&gt;</span>"&gt;more detail...&lt;/a&gt;<br>
+				&lt;div class="product_price" style="width: 100%"&gt;<br>
+				<div style="margin-left: 10px">
+					<div style="color: green">&lt;?=$Base_Price?&gt;<br></div>
+				</div>
+				&lt;/div&gt;<br>
+				&lt;span style="position:relative; right: 20; top: 10;  vertical-align:top"&gt;<span style="color: green">&lt;?=$New?&gt;</span>&lt;/span&gt;<br>
+		</div>
+&lt;/form&gt;<br>
+</div>
+&lt;/td&gt;
+</div><br>
+This template file is used to display a product when it's category is clicked on. Each variable between the <span style="color: green; font-weight: bold">&lt;? ?&gt;</span> brackets represents a field in the Products table.<br>
+<br>
+
+<b>Modifying a Template:</b><br>
+<div class="indent">
+	<b>1.</b> Create your own theme in the Themes table, by following the link in the example image, and clicking "Add New Theme".<br>
+	<b>2.</b> Create a new folder in the "squirrelcart/themes" folder with the same name as you specified in the "Path to Files" field on the theme's record.<br>
+	<b>3.</b> If you want all customers to see the change you are going to make, set this new theme as your default theme on your <a href="store_settings">store settings</a> page.<br>
+	<b>4.</b> Copy the template you wish to alter from "squirrelcart/themes/squirrelcart" into your new theme folder, and modify it with your HTML editor.<br>
+	<br>
+	<span class="important">Important Note:</span> DO NOT COPY ALL THE TEMPLATE FILES FROM THE SQUIRRELCART THEME FOLDER (squirrelcart/themes/squirrelcart) INTO YOUR CUSTOM THEME FOLDER!!!! (squirrelcart/themes/YourCustomTheme). This will cause many problems when upgrading your cart to a newer version.
+</div><br>
+<b>Modifying Theme Images:</b><br>
+Cart images are also considered part of a theme. There are 2 ways to modify images for a particular theme.<br>
+<div class="indent">
+	<b>Method 1:</b><br>
+	<div class="indent">
+		Click the link in the menu system that reads "YOUR CUSTOM THEME Images" where YOUR CUSTOM THEME is the name of the theme you wish to modfy. 
+		This menu option will only take you to the images for the theme that is set for the account that you are currently logged in as. After clicking the link, you will see a table
+		that lists all the images available for modification. Click on the image you wish to replace, browse to your new image file, and submit the record.<br>
+	</div>
+	<b>Method 2:</b><br>
+	<div class="indent">
+		Upload a new image va FTP to your custom theme folder with a name that matches an existing image in the Squirrelcart theme.<br>
+	</div>
+</div>
+
+
+<a href="#top">&lt;Back to Top&gt;</a><br>
+<br>
+
+
+
+
+
+<!------- Products and Categories section --------->
+<div class="sectionheader"><a name="products">Products and Categories</a></div><br>
+To manage your Products and Categories, you must first login as admin. The default admin username is "admin" and the password is "password". This section is only a guide to point you in the right direction to manage your product catalog. When you are adding or modifying a record, most of the field names can be clicked on. This will bring up a window with specific help for that particular field.<br>
+<br>
+<div class="smallsectionheader">Adding a New Product</div>
+<div class="indent">
+	1. In the admin interface, click "Catalog > Products > New"<br>
+	<div class="indent"><img src="menu_new_product.jpg"></div>
+	2. A form will open for you to add the product.
+</div>
+
+<div class="smallsectionheader">Modifying an Existing Product</div>
+<div class="indent">
+	1. In the admin interface, click "Catalog > Products > Manage"<br>
+	<div class="indent"><img src="menu_products_manage.jpg"></div>
+	2. A table will appear displaying your products.<br>
+	3. Click on any product's row, or the pencil <img src="pencil.gif"> to the left of the row, to modify the record.<br>
+	4. Modify and submit the record.
+</div>
+
+<div class="smallsectionheader">Copying an Existing Product</div>
+<div class="indent">
+	1. In the admin interface, click "Catalog > Products > Manage"<br>
+	<div class="indent"><img src="menu_products_manage.jpg"></div>
+	2. A table will appear displaying your products.<br>
+	3. Click on the copy button <img src="copy.gif">, to the left of the product you wish to copy.<br>
+	4. Modify and submit the record.
+</div>
+
+<div class="smallsectionheader">Adding a New Category</div>
+<div class="indent">
+	1. In the admin interface, click "Catalog > Categories > New"<br>
+	<div class="indent"><img src="menu_category_new.jpg"></div>
+	2. A form will open for you to add the category.
+</div>
+
+<div class="smallsectionheader">Modifying and Existing Category</div>
+<div class="indent">
+	1. In the admin interface, click "Catalog > Categories > Manage"<br>
+	<div class="indent"><img src="menu_category_manage.jpg"></div>
+	2. A table will appear displaying your categories.<br>
+	3. Click on any category row, or the pencil <img src="pencil.gif"> to the left of the row, to modify the record.<br>
+	4. Modify and submit the record.
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="smallsectionheader">Product Options</div>
+<div class="indent">
+	Product Options are used when you want to offer your customers choices that will modify the details of a particular item they are adding to their cart. There are 2 components. "Product Options", which defines the name of the option, such as size or color, and "Product Option Values", which defines the value of that option, such as large or blue. Here is how they work:
+	<br>
+	<br>
+	<b>1.</b> Create an option, and give it a name, such as "color". <br>
+	This is done by clicking "Catalog > Products > Options" in the admin section. Then click "add new record", fill out the form, and click "submit record".<br>
+	<br>
+	<b>2.</b> Then, create records for option values, and specify which 
+	option name they go with, like so:<br>
+	<div class="indent">
+		Option Name: Color<br>
+		Option Value: Red<br>
+		<br>
+		Option Name: Color<br>
+		Option Value: Green<br>
+		<br>
+		Option Name: Color<br>
+		Option Value: Yellow<br>
+	</div>
+	<br>
+	Each one of the three examples above represents a record in the 
+	"Product Option Values" table, which you get to by clicking "Catalog > Products > 
+	Option Values". Do not confuse the word "values" in this context with 
+	monetary values. The word value represents the actual option choice 
+	you want to give the users.<br>
+	<br>
+	<b>3.</b> Now, to add these options to a product, open a product record, and click "add option(s)" once 
+	for each choice you want to give the customer. You can also enter a 3 in the field next to
+	the button, and click it once to add 3 items all at once to save some time.<br>
+	<br>
+	<b>4.</b> On the product record, you should now see 3 options in the options 
+	section. You then set the Option Name for all three options to 
+	"Color". Then, set each option value as you want them to appear, red, green, yellow.<br>
+	<br>
+	<b>5.</b> Now, if you want to charge extra for the option, you enter the 
+	price next to it. You can also enter a negative value, if you want the option to deduct from the base price of the item.<br>
+	<br>
+	<b>6.</b> Click "submit" to submit the record changes<br>
+	<br>
+	The cart adds the price of whatever options where chosen to the "Base
+	Price" of the product. Here are 2 different ways you could use this, depending on your needs:<br>
+	<br>
+	<br>
+	<b>Example 1:</b><br>
+	Say you are selling a 4 cylinder car, and it's Base Price is set to 
+	$10,000. Now, you want to offer a 6 cylinder option, and it costs 
+	$1500 more. Than you would set the Base Price to 10,000, and add an option for 6 cylinders that has a price of $1500. Now if a customer orders it and adds the 6 cylinder option, the total will be $11,500.
+	<br>
+	<br>
+	<b>Example 2:</b><br>
+	You may have a need to offer 1 item in different formats, at 
+	different prices. A good example is audio. Say you have a music store, 
+	and sell both tapes and CDs of the same album. You wouldn't want to 
+	set it up as in the first example, because in that case, there is no 
+	real base price. For something like this, you would leave the base Price as 0, and uncheck "Show Base Price". Then setup your options with different prices. Now when someone adds the item to the cart, they will only be charged for whatever option they selected, without a base price.
+</div>
+<br>
+<br>
+
+
+<!------- shipping section --------->
+<div class="sectionheader"><a name="shipping">Shipping Options</a></div>
+<table>
+	<tr>
+		<td>
+			There are 3 main components to the shipping functionality of Squirrelcart - Shipping Couriers, Shipping Methods, and Shipping Rules. <br><br>
+			<b>Shipping Couriers</b> - This table contains a list of shipping couriers. If your store starting using a new courier, this is where you would add the name of the courier, and check "enable" to indicate that you are currently using it. The shipping methods that are explained below, are also listed on the shipping courier's record as "services". You can enable or disable a particular shipping method by checking or unchecking it on the courier's record.<br><br>
+			<b>Shipping Methods</b> - This table contains a list of shipping methods. If you know that "Bob's Delivery" service offers both "Overnight" and "Super Express" delivery methods, you would enter each method here, as a separate record. 
+			The presence of a method in this table does not control whether or not it will be offered to the customer. 
+			The purpose of this table is to to keep track of the name of the method itself.<br><br>
+		</td>
+		<td>
+			<img width="332" height="224" src="shipping_menu.jpg">
+		</td>
+	</tr>
+</table>
+
+
+
+<b>Shipping Rules</b> - This table contains a list of rules that Squirrelcart uses to determine what shipping methods will be applied (or offered) to the customer. 
+The table below lists the fields on each shipping rule record, and what they are used for:<br><br>
+
+<table border="0" style="border: black solid 1px" cellpadding="2" cellspacing="0" align="center">
+	<tr bgcolor="black">
+		<td class="header_td">
+			Field Name
+		</td>
+		<td class="header_td">
+			Purpose
+		</td>
+		<td class="header_td">
+			Value
+		</td>
+	</tr>
+	<tr>
+		<td class="field_td">Name</td><td class="field_td">uniquely identify a rule</td><td class="field_td">Text String, 50 char. or less</td>
+	</tr>
+	<tr>
+		<td class="field_td">Apply When</td>
+		<td class="field_td">determines when rule will take affect</td>
+		<td class="field_td">
+			City is<br>
+			Country is<br>
+			Number of products is<br>
+			Order total is<br>
+			State or Province is<br>
+			Weight total is<br>
+		</td>
+	</tr>
+	<tr>
+		<td class="field_td">Operator</td>
+		<td class="field_td">compares the value of "Apply When" with "Value" to determine if rule applies</td>
+		<td class="field_td">
+			Less Than<br>
+			Greater Than<br>
+			Less Than or Equal to<br>
+			Greater Than or Equal to<br>
+			Equal To<br>
+			Not Equal To<br>
+		</td>
+	</tr>
+	<tr>
+		<td class="field_td">Value</td>
+		<td class="field_td">This value is checked in the formula the cart uses based on "Apply When" and "Operator" fields</td>
+		<td class="field_td">Text or Number, 25 char. or less</td>
+	</tr>
+	<tr>
+		<td class="field_td">Shipping Cost</td>
+		<td class="field_td">Cost of shipping that will be offered if this rule applies</td>
+		<td class="field_td">Currency in decimal format OR a percentage followed by a % symbol.</td>
+	</tr>
+	<tr>
+		<td class="field_td">Apply to Shipping Type</td>
+		<td class="field_td">Courier that will be offered if this rule applies</td>
+		<td class="field_td">Courier from drop down list</td>
+	</tr>
+	<tr>
+		<td class="field_td">Apply to Shipping Method</td>
+		<td class="field_td">Shipping method that will be offered if this rule applies</td>
+		<td class="field_td">Shipping method from drop down list</td>
+	</tr>
+	<tr>
+		<td class="field_td">Priority</td>
+		<td class="field_td">Determines priority of rule relative to other rules that apply</td>
+		<td class="field_td">Number</td>
+	</tr>
+	<tr>
+		<td class="field_td">Enabled</td>
+		<td class="field_td">Determines whether this rule is enabled</td>
+		<td class="field_td">checked or unchecked</td>
+	</tr>
+</table>
+
+<br><br>For example, USPS Priority Mail is $3.50 for a small package. As the weight gets larger, the price goes up. You could program in 
+certain rules based on your needs, and try and match them to whatever shipping method you are using. 
+
+The "Priority" field is basically a tie breaker. It comes into play when you have 2 or more rules that apply for an order, as in 
+this example:<br><br>
+<div class="indent">
+Rule 1:<br>
+Apply when: Weight total is...<br>
+Operator:	Less Than<br>
+Value:	1 (lbs - you don't need to enter lbs, just the number)<br>
+Shipping cost: $3.50<br>
+Apply to shipping type: USPS<br>
+Apply to shipping method: Priority Mail<br>
+Priority: 1<bR><br>
+
+Rule 2:<br>
+Apply when: Weight total is...<br>
+Operator:	Less Than<br>
+Value:	1 (lbs - you don't need to enter lbs, just the number)<br>
+Shipping cost: $1.50<br>
+Apply to shipping type: USPS<br>
+Apply to shipping method: First Class Mail<br>
+Priority: 1<br>
+</div>
+Now say the order for this example is 1/2 of a pound. If you read these rules, both of them apply. So, if the priorities are the same, the customer gets to choose the shipping 
+method at checkout. Now, say you have a free shipping policy on orders over $100. And you have a rule for that as well, and someone orders a rare 
+postage stamp that costs $150. Then in this case, the first two rules for weight would apply (because stamps are light!), as well as your free shipping rule. So the only way you 
+could force the free shipping rule (which you would probably want to do) is to give it a higher priority. So you would make its priority 2.
+<br><br><b>Important note:</b> If you have a Courier set to disabled, it will still appear in the rules for the field "Apply To Shipping Type". If you set this field to a courier that 
+is disabled, it will not apply unless you enable the courier itself.
+
+Each individual rule can also be disabled if you need to, by unchecking the "Enabled" field..<br><br>
+
+<div class="smallsectionheader">Real Time Rate Lookups</div>
+Squirrelcart supports real time rate lookups for USPS and UPS. This feature works as follows:<br>
+<div class="indent">
+	<b>1.</b> Customer clicks on "continue" link to be taken to a form to choose shipping method<br>
+	<b>2.</b> Your (merchant's) web server connects to courier's web site, and requests rates for each package in the order.<br>
+	<b>3.</b> Courier's server responds to merchant's server with rate information.<br>
+	<b>4.</b> Merchant's web server then presents the rates to the customer for them to choose in the shipping method form<br><br>
+</div>
+To enable Real Time Rate lookups for USPS, do the following:<br>
+<div class="indent">
+	<b>1.</b> Register online to use USPS Web Tools at the following URL: <a href="http://www.uspsprioritymail.com/et_regcert.html">http://www.uspsprioritymail.com/et_regcert.html</a><br>
+	<b>2.</b> Once your registration is complete, you will receive a username and password to access USPS Web Tools.<br>
+	<b>3.</b> In Squirrelcart, login as an admin, and click "edit records" to go to the admin section of the cart<br>
+	<b>4.</b> Click "Setting > Shippings > Couriers" in the menu system<br>
+	<b>5.</b> Click on the record for "U.S.Postal Service"<br>
+	<b>6.</b> Make sure "Enabled" is checked<br>
+	<b>7.</b> Check the "Real Time Rates" field<br>
+	<b>8.</b> Enter your username and password provided by USPS in the "RTR Username" and "RTR Password" fields, respectively.<br>
+	<b>9.</b> The "RTR URL" is the URL that the cart will use to obtain rates. Confirm that it is set to "http://production.shippingapis.com/ShippingAPI.dll".<br>
+	<b>10.</b> Check the boxes next to the services you wish to offer<br><br>
+</div>
+To enable Real Time Rate lookups for UPS, do the following:<br>
+<div class="indent">
+	<b>1.</b> In Squirrelcart, login as an admin, and click "edit records" to go to the admin section of the cart<br>
+	<b>2.</b> Click "Setting > Shippings > Couriers" in the menu system<br>
+	<b>3.</b> Click on the record for "United Parcel Service"<br>
+	<b>4.</b> Make sure "Enabled" is checked<br>
+	<b>5.</b> Click "Enable UPS OnLine Tools®"<br>
+	<b>6.</b> Follow the prompts in the forms, which will take you through the registration process<br>
+	<b>7.</b> Click "Next" on the "Registration Successful" screen, and you will be returned to the UPS Shipping Courier record<br>
+	<b>8.</b> You should now see a message that reads "You are registered to use UPS OnLine Tools®"<br><br>
+</div>
+Squirrelcart automatically treats rate information obtained via RTR lookups as Shipping Rules. This allows you to offer your customers a combination of real time rates and Shipping Rules. To set the priority that these RTR Shipping Rules will use, use the field "RTR Shipping Rule Priority" on the record for each shipping courier.
+<br><br>
+Real time rate information is provided on a per package basis. To handle this, Squirrelcart has a packing function that it uses to determine a rough estimate of the number of packages that are in the order. It then requests rate information for each package, totals the amount per package, and offers the total amount to the customer for the corresponding shipping method. Squirrelcart uses the value of the Max. Weight field on the Shipping Method's record to determine how to pack the order. This method is not foolproof, but does work very well. If you wish your shipping rates to be more accurate, we recommend you check the "Ship as a separate package" option on your product records. The cart will then assume that you are shipping every item ordered in a separate package.<br>
+<br>
+<br>
+<div class="smallsectionheader">UPS Tracking</div>
+If you follow the procedures for enabling UPS Rates and Services above, UPS Tracking will automaticlaly be enabled. This will appear in both the front end after login, and in the back end "Tools" menu.
+<br>
+<br>
+
+<a href="#top">&lt;Back to Top&gt;</a><br>
+<br>
+
+
+<!-------------- payment section --------------------->
+<br><br>
+<div class="sectionheader"><a name="payment">Payment Options</a></div>
+<img style="float: right" src="payment_menu.jpg" width="322" height="211">
+<div class="smallsectionheader">Payment Methods</div><br>
+The Payment Methods table contains a list of the different methods of payment available to Squirrelcart. As of v1.1.0, these include Visa, MasterCard, American Express, Discover, Check or Money Order, Electronic Check, and PayPal. <br>
+<br>
+To enable a particular payment method, click the checkbox next to it in the "Enabled" column.<br>
+<img width="332" height="69" src="checking_cc.jpg">
+<br><b>Important Note:</b> For the cart to use any of the the credit card payment methods, you will need to have access to a payment gateway system. <br><br>
+
+To accept checks or money orders via mail, you will need to:<br>
+<div class="indent">
+	Make sure you have filled out your company information in the top of your store settings page. 
+	This information will presented to the customer for them to mail their payment to.
+</div>
+
+To accept PayPal, you will need to:
+<div class="indent">
+	<b>1.</b> obtain an account with <a href="http://paypal.com">PayPal.com</a><br>
+	<b>2.</b> click on the record for PayPal in the Payment Methods table, and enter the email address associated with your PayPal account in the "PayPal Email" field.
+</div>
+
+To accept Electronic Checks (direct debit):
+<div class="indent">
+	You will need to use Authorize.net's payment gateway system. As of v1.1.0, Squirrelcart only supports electronic checks via Authorize.net.
+</div>
+
+<div class="smallsectionheader">Payment Gateways</div>
+In order to accept payments via credit card, you will need to use a payment gateway system. To enable and configure a payment gateway:
+<div class="indent">
+	<b>1.</b> Click on it's record in the Payment Gateways table<br>
+	<b>2.</b> Fill out the fields on the record with the information provided by your payment gateway provider. The fields on the Payment Gateway records vary depending on the gateway. Many of the field names can be clicked on for help.<br>
+	<b>3.</b> If you have the ability to put your payment gateway account, it is recommend that you do so. You can then test the checkout process. 
+	Squirrelcart will accept a credit card number of 4111111111111111 for testing purposes. 
+</div>
+
+
+<div class="smallsectionheader">CVV2/CVC Credit Card Security Codes</div>
+To help reduce credit card fraud, credit card companies have begun putting a 3 or 4 digit security 
+code on credit cards. It is designed to to help	merchants verify that the customer has a legitimate card in hand at the time of the order.
+On most cards, the security code appears on the back of the card, in the signature panel, directly after the credit card number. On American Express, it appears on the front.
+<br>
+<table align="center" border="0" width="650">
+	<tr>
+		<td><img width="237" height="151" src="visa_mc_discover_cvv.jpg"></td>
+		<td><br><br>Card Verification Code for Visa, Mastercard, and Discover</td>
+		<td><img width="237" height="151" src="amex_cvv.jpg"></td>
+		<td><br><br>Card Verification Code for American Express</td>
+	</tr>
+</table><br>
+Squirrelcart supports the collection of this security code. As of this writing, however, only the Authorize.net payment gateway module will 
+pass the information along to the gateway URL as part of the transaction. The other payment gateway modules will be updated soon to support this feature.
+<br><br>
+To enable the collection of the CVV2/CVC security code, do the following:<br>
+<div class="indent">
+	<b>1.</b> Logon to your cart as admin<br>
+	<b>2.</b> Click on "edit records"<br>
+	<b>3.</b> Click on the <a href="#store_settings">store settings</a> link<br>
+	<b>4.</b> In the "Security Settings" section, check the box next to "Collect CVV2/CVC"<br>
+	<b>5.</b> If you wish to make an order require that the security code be entered, check the box next to "CVV2/CVC is Required"<br>
+</div>
+<br>
+<br>
+
+<br>
+<a href="#top">&lt;Back to Top&gt;</a><br>
+<br>
+
+<!-------------- Sales Tax section --------------------->
+<br><br>
+<div class="sectionheader"><a name="tax">Sales Tax</a></div>
+<img style="float: right" src="tax_menu.jpg" width="230" height="210">
+Squirrelcart can add sales tax to an order based on the state or province specified in the shipping address of the order. 
+To charge tax in a state, click "Add New Sales Tax", choose a state, and enter the sales tax percentage.. 
+To modify the Sales Tax you charge for a particular state, click the record for that state, and make the necessary changes.
+<br><br>
+You can exclude a product from being taxed at both the category and product level, using the field labeled "Tax Item" in the Products or Categories table.
+<br><br><br><br><br><br><br><br><a href="#top">&lt;Back to Top&gt;</a><br>
+<br>
+
+
+<!-------------- Inventory Control section --------------------->
+<br><br>
+<div class="sectionheader"><a name="inventory_control">Inventory Control</a></div><br>
+<img style="float: right" src="inventory_control.jpg" width="502" height="206">
+Squirrelcart has the ability to keep track of the number of units you have in stock for any given product. To use this feature, do the following:<br>
+<div class="indent">
+	<b>1.</b> Logon to your cart as admin<br>
+	<b>2.</b> Click on "edit records"<br>
+	<b>3.</b> Click on the <a href="#store_settings">store settings</a> link<br>
+	<b>4.</b> Check the box next to "Use Inventory Control". You should then see 2 more fields that will appear directly below the checkbox, as shown in the image on the right.<br>
+	<b>5.</b> Set the remaining fields, "Out of Stock Behavior" and "Out of Stock Indicator". For a detailed description of what these fields
+	do, click on their names in the admin section of the cart.<br>
+	<b>6.</b> Specify the number of units you have for each product in the "Number in Stock" field on your Product records.<br>
+	</div>
+<br>
+The cart will then subtract from your inventory when someone adds an item to their cart. If they do not check out in the amount of time specified
+in the "Session Timeout" field on your store settings page, the items will be added back into your inventory. If the setting of your "Out of Stock Behavior" 
+allows a customer to purchase an item even when it is out of stock, the "Number in Stock" field will become negative, to reflect the number sold since the point that
+your stock was depleted.
+<br>
+<br>
+<a href="#top">&lt;Back to Top&gt;</a><br><br>
+<br>
+
+
+
+
+<!-------------- backup section --------------------->
+<br><br>
+<div class="sectionheader"><a name="backup">Backing up Squirrelcart</a></div>
+To backup your files, you will need an FTP program.<br>
+The following files / directories should be backed up (paths are shown from web root):<br>
+<div class="indent">
+/squirrelcart<br>
+/images (all of your product and category images will be in here)<br>
+/index.php (or whatever page you are using for your store. this defaults to "store.php" for a new install, but is usually changed to index.php)<br>
+/home.php (if you are using this file)<br>
+</div><br>
+To backup your database, you will need need phpMyAdmin. See the <a href="#install">installation section</a> if you need more info on this application. Here is how to backup your DB:<br>
+<div class="indent">
+<b>1.</b> Click on your database in phpMyAdmin<br>
+<b>2.</b> Match the settings in the image below, in your DB, and click "Go".<br><br>
+<img width="641" height="435" src="backup_img.jpg"><br><br>
+<b>3.</b> Save the file somewhere safe!<br>
+</div>
+<br>
+<br>
+<a href="#top">&lt;Back to Top&gt;</a><br>
+<br>
+	</body>
+	</html>

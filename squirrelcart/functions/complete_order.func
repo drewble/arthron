@@ -1,0 +1,15 @@
+<?
+// file modified on 8/13/2003 for v1.2.0 to fix premature storage of order info in the database
+//
+// purpose of function is to execute all the code that needs to run after a successfull order placement (place_order.func)
+function complete_order(){
+	global $SC;
+	email_merchant(); //  send order via e-mail to merchant
+	email_order_confirmation(); // send order confirmation via email to customer
+	update_sales_stats(); // store info on how many of each item was ordered
+	add_order_to_db(); // add order info to the database
+	// -------- empty cart -----------//
+	unset($SC['order']);
+	unset($SC['complete_order']);
+}
+?>

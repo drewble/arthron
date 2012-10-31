@@ -1,0 +1,24 @@
+<?
+// file created on 9/10/2003 for v1.2.0
+// purpose of function is to log install info
+// modifying this file will void the Squirrelcart License Agreement and your support status
+function log_info() {
+	global $SC,$HTTP_SERVER_VARS;
+
+//workaround - jamie
+return;
+
+// get last date info was logged (in UNIX timestamp format)
+	$last_log = get_field_val("Store_Information","Last_Log");
+	$today = date("Y-m-d");
+	if ($last_log != $today) { // if not already logged today
+		$info['www_cart_page'] = $SC['www_cart_page'];
+		$info['server_ip'] = $HTTP_SERVER_VARS['SERVER_ADDR'];
+		$info['server_name'] = $HTTP_SERVER_VARS['SERVER_NAME'];
+		$info['sc_version'] = $SC['client_version'];
+		$post_url = "http://www.squirrelcart.com/log.php";
+		ssl_connect($post_url,$info,0,0,5);
+		set_field_val("Store_Information","Last_Log",$today,"record_number = 1");
+	}
+}
+?>

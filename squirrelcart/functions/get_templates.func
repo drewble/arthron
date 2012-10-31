@@ -1,0 +1,27 @@
+<?
+// purpose of function is to determine the path to the template files and store them in an array
+// this will return a variable like this
+// $var[template][name],
+// where name is the name of the template in the "Templates" table
+function get_templates(){
+global
+$SC;
+
+$templates = get_records("Templates","record_number",0,0,0);    // get list of template record numbers in an array
+
+// loop through templates
+for($x=0;$templates[$x];$x++){
+	$template = $templates[$x];
+	$template_rn = $template[0];
+	$template_name = get_field_val("Templates","Name","record_number = \"$template_rn\"");
+	$template_filename = get_field_val("Templates","Filename","record_number = \"$template_rn\"");
+
+	if(file_exists($SC['theme_dir']."/$template_filename")) {
+		$templates[$template_name] = $SC['theme_dir']."/$template_filename";	
+		} else {
+		$templates[$template_name] = $SC['default_theme_dir']."/$template_filename";	
+	}
+	}
+	return $templates;
+}
+?>

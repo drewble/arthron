@@ -1,0 +1,81 @@
+<?
+// file modified on 8/13/2003 for v1.2.0 to fix premature storage of order info in the database
+// file modified on 10/22/2003 for v1.4.0 to add payment method to order table
+//
+// purpose of function is to add order info to the database
+function add_order_to_db(){
+	global $SC;
+	// -------- set field names -----------------//
+	$fields[] = "Order_Number";
+	$fields[] = "Ordered_By";
+	$fields[] = "Product_Total";
+	$fields[] = "Tax_Total";
+	$fields[] = "Shipping_Total";
+	$fields[] = "Grand_Total";
+	$fields[] = "Order_Date";
+	$fields[] = "Payment_Method";
+	$fields[] = "Ship_Special_Instructions";
+	$fields[] = "Shipping_Details";
+	$fields[] = "Packing_Details";
+	//-------- set field values -----------------//
+	$values[] = $SC['order']['number'];
+	$values[] = $SC['user']['record_number'];
+	$values[] = $SC['order']['product_total'];
+	$values[] = $SC['order']['tax_total'];
+	$values[] = $SC['order']['shipping_total'];
+	$values[] = $SC['order']['grand_total'];
+	$values[] = $SC['order']['Order_Date'];
+	$values[] = @get_field_val("Payment_Methods","record_number","Name = \"".$SC['order']['pay_info']['method']."\"");
+	$values[] = $SC['order']['Ship_Addr']['Special_Instructions'];
+	$values[] = get_shipping_info("bare",1);
+	$values[] = get_shipping_info("verbose");
+	// ---------- set field names and values for shipping and billing addresses -----------------------------------------//
+	$fields_billing = get_field_array("Address_Form_Settings","Billing_Fields","record_number = '1'");
+	for($x=0;$fields_billing[$x];$x++){
+		$string1 = $fields_billing[$x];
+		$string2 = "Bill_".$fields_billing[$x];
+		$fields[] = $string2;
+		$values[$string2] = $SC['order']['Bill_Addr'][$string1];
+	}
+	$fields_shipping = get_field_array("Address_Form_Settings","Shipping_Fields","record_number = '1'");
+	for($x=0;$fields_shipping[$x];$x++){
+		$string1 = $fields_shipping[$x];
+		$string2 = "Ship_".$fields_shipping[$x];
+		$fields[] = $string2;
+		$values[$string2] = $SC['order']['Ship_Addr'][$string1];
+	}
+	// ----- add order to DB ---------//
+	add_record("Orders",$fields,$values);
+	$order_rn = mysql_insert_id(); //  capture record number just added for use below
+	// --------- add ordered items to seperate table in DB -----------------//
+	for($x=0;$SC['order'][$x];$x++){
+		$ord_item = $SC['order'][$x];
+		// clean up
+		unset($fields);
+		unset($values);
+		// ----------- set fields ----------//
+		$fields[] = "Order_rn";
+		$fields[] = "Item_rn";
+		$fields[] = "Order_Number";
+		$fields[] = "Name";
+		$fields[] = "Quantity";
+		$fields[] = "Options";
+		$fields[] = "Base_Price";
+		$fields[] = "Options_Price";
+		$fields[] = "Item_Total";
+		$fields[] = "Item_Subtotal";
+		// ------------ set values -----------//
+		$values[] = $order_rn;
+		$values[] = $ord_item['record_number'];
+		$values[] = $SC['order']['number'];
+		$values[] = $ord_item['Name'];
+		$values[] = $ord_item['qty'];
+		$values[] = serialize($ord_item['option']);
+		$values[] = $ord_item['base_price'];
+		$values[] = $ord_item['item_total'] - $ord_item['base_price'];
+		$values[] = $ord_item['item_total'];
+		$values[] = $ord_item['item_subtotal'];
+		add_record("Ordered_Items",$fields,$values);
+	}
+}
+?>

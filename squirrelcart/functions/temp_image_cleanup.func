@@ -1,0 +1,53 @@
+<?
+// this file added on 11/22/03 for v1.3.0 to clean up temp images from GD manipulation
+
+function temp_image_cleanup(){
+global $SC;
+
+	// only run if admin
+	if (!security_level("Store Admin")) return;
+	
+	// get all images from products, categories, etc....into an array
+	// first, put full path to each directory in an array
+	$image_dirs = get_records("Field_Definition","Path, Table_Name","Display_As = 'Image Upload'");
+	for($x=0;$image_dirs[$x];$x++){
+		$image_dir = $image_dirs[$x];
+		$table_name = $image_dir['Table_Name'];
+		$path = $image_dir['Path'];
+		if($path) {
+			if($table_name == "Cart_Images" || $table_name == "Payment_Methods") {
+				$dirs[] = "$SC[site_isp_root]/$path";
+			} else {
+				$dirs[] = "$SC[site_isp_root]/$SC[image_folder]/$path";
+			}
+		}
+	}
+	$dirs = array_unique($dirs); // remove any duplicate directory names
+	
+	// loop through each dir, and get all ~TEMP~ files into an array
+	foreach($dirs as $dir) { 
+		if(is_dir($dir)) { // make sure directory exists
+			$handle=opendir($dir); 
+			while ($file = readdir($handle)) {
+				if ($file != "." && $file != ".." && strstr($file,"~TEMP~")) $files[] = "$dir/$file";
+			}
+		}
+	}
+	
+	// if no files, exit
+	if (!$files) return;
+	
+	// loop through all temp files, and delete if old enough and possible
+	foreach($files as $file) {
+		// get Unix date portion of filename
+		$file_date = strstr($file,"~TEMP~");
+		$file_date = str_replace("~TEMP~","",$file_date);
+		$ext = strrchr($file, ".");
+		$file_date = str_replace($ext,"",$file_date); // $file_date now equals a Unix timestamp
+		$cutoff_secs = 300; // time we will allow a temp image to hang around
+		$now = time();
+		$age_of_image = $now - $file_date;
+		if ($age_of_image >= $cutoff_secs) @unlink($file); // delete old image
+	}
+}
+?>

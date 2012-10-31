@@ -1,0 +1,31 @@
+<?
+// purpose of function is to display a page in a popup window
+// parameters are:
+//   $page - the URL of the page to open
+//   $link_content - the code to place between the <a> and </a> tags
+//   $height - height of popup
+//   $width - width of popup
+//   $scrollbars - set to 'yes' or 'no'
+//   $resizable - set to 'yes' or 'no'
+
+Function Popup_Window($page, $link_content, $width, $height, $scrollbars, $resizable,$class="product_options_details_link"){
+global $popup_js_exists;
+if (!$popup_js_exists){
+	$config = "toolbar=no,menubar=no,location=no,directories=no,status=no";
+	// print the java script needed for this to work
+	$popup_code = "
+	<SCRIPT LANGUAGE=\"JavaScript\">
+	<!--
+	function Popup(page,width,height,scrollbars,resizable)
+		{
+		thewindow = window.open(page, '', config='height=' + height + ',width=' + width + ',scrollbars=' + scrollbars + ',resizable=' + resizable + ',$config');
+		}
+	// -->
+	</SCRIPT>
+	";
+	$popup_js_exists=1;
+};
+$popup_code .= "<a class=\"$class\" href=\"javascript:Popup('$page', $width, $height, '$scrollbars', '$resizable')\">$link_content</a>";
+return $popup_code;
+}
+?>

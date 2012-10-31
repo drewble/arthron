@@ -1,0 +1,111 @@
+<?
+Function Display_Image($image_path, $link_content,$return=0){
+global
+$script, $cart_isp_root, $cart_www_root,$site_www_root,$site_isp_root;
+
+// This function will display an image in a separate window,
+// sized to the size of the image, and when you click the image, 
+// the window will close
+
+// Below grabs config settings for this function
+include("$cart_isp_root/functions/display_image.cfg");
+
+
+// below detects whether or not the path was specified from the server's root, and fixes it if needed,
+// i.e. -  path should be something like /home/sitename/www/path/to/image
+// and not /path/to/image
+if (!strstr($image_path,$site_isp_root)) {
+	$image_true_path = "$site_isp_root/$image_path";
+	} else {
+		$image_true_path = $image_path;
+		}
+
+$image_size = GetImageSize($image_true_path);
+if ($script == 0){ // If script isn't on page, add it below
+$script = 1;
+?>
+
+
+
+<SCRIPT language=javascript>
+<!--initialisation JavaScript.
+var DispWin=null
+var Disp3Win=null
+var MapWin=null
+var Map3Win=null
+function display(image,iwidth,iheight)
+{
+            if (iwidth==null) iwidth="600";
+            if (iheight==null) iheight="400";
+												var brow_type=navigator.appName
+												var brow_vers=parseInt(navigator.appVersion)
+												if ((brow_type=="Microsoft Internet Explorer"||brow_type=="Netscape")&&brow_vers<4) {
+												var iwidth1=eval(iwidth+"+20");
+												var iheight1=eval(iheight+"+32");
+												if(Disp3Win!=null&&Disp3Win.closed==false)
+												Disp3Win.close()
+												Disp3Win=window.open(image, "display3", "resizable=no,status=no,width="+iwidth1+",height="+iheight1);
+												}
+												else {
+            if(DispWin!=null&&DispWin.closed==false)
+												DispWin.close();;
+            DispWin=window.open("", "display", "resizable=no,status=no,width="+iwidth+",height="+iheight);
+												DispWin.document.open();
+            DispWin.document.write("<HTML>");
+            DispWin.document.write("<TITLE><? print ($window_title) ?></TITLE>");
+            DispWin.document.write("<STYLE TYPE='text/css'> BODY {margin:0pt} </STYLE>");
+            DispWin.document.write("<BODY TOPMARGIN=0 LEFTMARGIN=0 MARGINWIDTH=0 MARGINHEIGHT=0 BGCOLOR='#FFFFFF'>");
+            DispWin.document.write("<CENTER>");
+			DispWin.document.write("<table height=100%><tr><td valign=middle height=100%>");
+            DispWin.document.write("<A HREF='javascript: void(null)' onClick='self.close()'><IMG SRC='"+image+"' ALIGN='Center' WIDTH='"+iwidth+"' HEIGHT='"+iheight+"' BORDER='0' ALT='Close Window'></IMG></A>");
+			DispWin.document.write("</td></tr></table>");
+            DispWin.document.write("</CENTER>");
+            DispWin.document.write("</HTML>");
+												DispWin.document.close();
+            DispWin.focus();
+												}
+}
+function dispmap(image,iwidth,iheight)
+{
+            if (iwidth==null) iwidth="600"
+            if (iheight==null) iheight="341"
+												var brow_type=navigator.appName
+												var brow_vers=parseInt(navigator.appVersion)
+												if ((brow_type=="Microsoft Internet Explorer"||brow_type=="Netscape")&&brow_vers<4) {
+												var iwidth1=eval(iwidth+"+20");
+												var iheight1=eval(iheight+"+32");
+												if(Map3Win!=null&&Map3Win.closed==false)
+												Map3Win.close()
+												Map3Win=window.open(image, "dispmap3", "resizable=no,status=no,width="+iwidth1+",height="+iheight1);
+												}
+												else {
+            if(MapWin!=null&&MapWin.closed==false)
+            MapWin.close();
+            MapWin=window.open("", "dispmap", "resizable=no,status=no,width="+iwidth+",height="+iheight);
+												MapWin.document.open();
+            MapWin.document.write("<HTML>");
+            MapWin.document.write("<TITLE>ModelTrains.Org</TITLE>");
+            MapWin.document.write("<STYLE TYPE='text/css'> BODY {margin:0pt} </STYLE>");
+            MapWin.document.write("<BODY TOPMARGIN=0 LEFTMARGIN=0 MARGINWIDTH=0 MARGINHEIGHT=0 BGCOLOR='#FFFFFF'>");
+            MapWin.document.write("<CENTER>");
+			MapWin.document.write("<table height=100%><tr><td valign=middle height=100%>");
+            MapWin.document.write("<A HREF='javascript: void(null)' onClick='self.close()'><IMG SRC='"+image+"' ALIGN='Center' WIDTH='"+iwidth+"' HEIGHT='"+iheight+"' BORDER='0' ALT='Close Window'></IMG><A>");
+			MapWin.document.write("</td></tr></table>");
+            MapWin.document.write("</CENTER>");
+            MapWin.document.write("</HTML>");
+												MapWin.document.close();
+            MapWin.focus();
+												}
+}
+// fin JavaScript. -->
+</SCRIPT>
+<?  } 
+
+$value = "<A style='color: blue; text-align: left; position: relative; top: -1' class='field_input' href=\"javascript:display('$site_www_root/$image_path','$image_size[0]','$image_size[1]')\">$link_content</a>";
+if($return) {
+	return $value;
+	} else {
+	print $value;
+}
+
+ } ?>

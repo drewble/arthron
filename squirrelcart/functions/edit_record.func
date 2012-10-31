@@ -1,0 +1,292 @@
+<?
+function edit_record(){
+global
+$SC,$HTTP_POST_VARS,$HTTP_GET_VARS,$Options,$Mode,$Field_Name,$Table_Name,$db,$table, $select_key1, $select_key2, $fields_unsorted, $selected_record_number, $sql_action, $add_option,$new_option_count,$add_new_item,$copy_record;
+	//get field names, both sorted and unsorted
+	$fields=get_fields($db, $table);
+	$fields_sorted = $fields["sorted"];
+	$fields_unsorted = $fields["unsorted"];	
+	$arrays = get_field_formats("Arrays",$table);
+	$functions= get_field_formats("Functions",$table);
+	$relations = get_field_formats("Relationship",$table);
+	$field_defs = get_field_formats("Field_Definition",$table);
+
+	// below will check field definition to see if user can add records to this table or not
+	$no_new_records = get_field_val("Table_Definition","No_New_Records","Table_Name = '$table'");
+	if ($add_new_item || $copy_record) { // if adding a new record
+		if ($no_new_records && !security_level("Squirrelcart Developer")) {
+			print "<b>Error:</b> Access denied! You are not authorized to add new records to this table.";
+			return;
+		}
+	}
+
+	// below will pre populate the fields on the Record_Definition records when you click "define record" below an existin record (SC Developer only!)
+	if ($add_new_item && $HTTP_GET_VARS && !$copy_record) $HTTP_POST_VARS = array_merge($HTTP_POST_VARS,$HTTP_GET_VARS);
+
+	// set referring page in session to return to after successful edit
+	if (!$SC['return_page']){
+		if ($SC['last_page']) {
+			$SC['return_page'] = $SC['last_page'];
+		} else {
+			$SC['return_page'] = $SC['www_admin_page'];
+		}
+	}
+// if copying a record, set the values of the fields appropriately
+	if($copy_record) {
+		$rn=$copy_record;
+	}
+
+// below section sets record number if it doesn't exist (because it is a new item)
+if($sql_action=="Submit Record") {
+	 if (!$selected_record_number) {
+	 	$selected_record_number=mysql_insert_id();
+		}
+	}
+	
+if(!$add_new_item) $rn=$selected_record_number;
+
+// if not posting
+if (!$HTTP_POST_VARS) {
+	$query="SELECT * FROM $table WHERE record_number=$rn";
+	$result = mysql_query ($query);
+	if($result) $field_value = mysql_fetch_array ($result);
+}
+//code below adds java script to toggle field visibility
+toggle_vis($table,$fields);
+
+if (!$add_new_item) $record_header = @get_field_val("Record_Definition","Header","Table_Name = '$table' AND Record = $selected_record_number");
+if ($record_header) $record_header = "<br><div>$record_header</div>";
+print "
+<div style=\"width: 600; text-align: left\">\n
+$record_header
+<form name=\"record_form\" enctype=\"multipart/form-data\" action=\"\" method=\"post\">\r";
+if($add_new_item) {
+	print "<input type=\"hidden\" name=\"add_new_item\" value=\"1\">\r";
+	} else {
+		print "<input type=\"hidden\" name=\"sql_action\" value=\"editing_record\">\r";
+}
+
+	for ($x = 0; $fields_unsorted[$x]; $x++) {
+		$field_name = $fields_unsorted[$x];
+		// below keeps the entries user typed in until they are ready to submit changes
+		if(!$arrays[$field_name]){ // no solution yet for arrays. if i run the line on arrays, it screws them up. this is a temp fix
+			// if posting, use posted variable, not the one from the existing record
+			if ($HTTP_POST_VARS[$field_name]) {
+				$field_value[$x]=stripslashes($HTTP_POST_VARS[$field_name]); // if field is already set, don't pull from DB via field_value[$x]. use value typed in instead
+			}
+			$$field_name = $field_value[$x];
+		}
+	}
+
+	for ($x = 0; $fields_unsorted[$x]; $x++) {
+		$field_name = $fields_unsorted[$x];
+		$field_name_nu = str_replace("_"," ",$field_name);
+		// fix reserved MySQL fields
+		$field_name_nu = fix_reserved_mysql_values($field_name_nu);
+
+// get optional descriptor text
+		$field_def = get_records("Field_Definition","*","Table_Name = '$table' AND Field_Name = '$field_name'");
+		$field_def = $field_def[0];
+		if($field_def['Descriptor']) $field_name_nu = $field_def['Descriptor'];
+		
+		
+		
+// check to see if help is available for field. if it is, make the field name show up as a link to get field help
+	$is_help = get_field_val("Field_Help","Help","Table_Name = \"$table\" AND Field_Name = \"$field_name\"");
+	if ($is_help) {
+		$help_page = "$SC[cart_www_root]/show_help.php?table=$table&field=$field_name";
+		$help_content = $field_name_nu;
+		$help_width = "300";
+		$help_height = "250";
+		$scrollbars = "yes";
+		$resizable = "yes";
+		$class = "admin_help_link";
+		$help_popup = Popup_Window($help_page, $help_content, $help_width, $help_height, $scrollbars, $resizable,$class);
+		$field_name_nu = $help_popup;
+		}
+	
+	unset($current);
+	$is_upload = $field_defs[$field_name][Display_As] == "Image Upload";
+	if ($is_upload) {
+		$current = "Current ";
+		}
+	$is_function=$functions[$field_name];
+	$is_array = $arrays[$field_name];
+	$is_relation = $relations[$field_name];
+
+	$is_not_set = !$field_value[$x];
+	$dont_display_field_name = ($is_upload && $is_not_set);
+	$display_field_name = !$dont_display_field_name;
+
+	if ($field_name !="record_number"){
+		if ($field_defs[$field_name]){ // this field is defined in the field_definition table
+			if ($copy_record) {
+				$rn = $copy_record;
+				} else {
+				$rn = $selected_record_number;
+			}
+			print get_defined_field($table,$field_name,$rn,"$field_name_nu",0,$GLOBALS);
+		} else {
+			if($is_relation) {
+				show_relation($field_name,$table,$field_value[$x]);
+				} else {
+				// runs if function is specified to either run before, or surround field
+					if($is_function){
+						if($functions[$field_name]["Mode"]==3){
+							eval($functions[$field_name]["Function"]);
+						}
+						if ($functions[$field_name]["Mode"]==4){
+							eval($functions[$field_name]["Function_Header"]);
+						}
+					}
+					//-------file upload section -------------------
+					// --------- function section (run function specified in field) ----------------------//
+					if($is_function && ($functions[$field_name]["Mode"]==1)){
+						eval($functions[$field_name]["Function"]);
+					} else {
+						//--------- array section ------------------------------------//
+						if ($is_array){
+							if ($field_name=="Options"){
+								print "<span style='width:100%; text-align:center'>";
+								if (!$Options || $sql_action == "Submit Record") {
+									$array_values=$field_value[$x];
+									$options_exp=array_to_sql("explode",$array_values);
+									} else {
+										$options_exp=$Options;
+								}
+								if($add_option) {
+									$options_count = count($options_exp);
+									if($options_count==1 && $add_option) $options_count = 0;
+								for($f=0;$f < $new_option_count;$f++){
+									$options_exp[$options_count] = "----";
+									$options_exp[$options_count+1] = "----";
+									$options_exp[$options_count+2] = "----";
+									$options_exp[$options_count+3] = "----";
+									$options_count = $options_count+4;
+								}
+							}
+					if ($options_exp[0]) {
+						print "
+						<span class=\"option_name\">Option Name</span>\r
+						<span class=\"option_value\">Value</span>\r
+						<span class=\"option_price\">Price</span>\r
+						<span class=\"option_weight\">Weight</span>\r
+						<span class=\"option_delete\">";
+						show_image("Cart Images","delete");
+						print "</span><br>\r";
+						}
+					for ($i=0;$options_exp[$i];0){
+						$option = htmlspecialchars($options_exp[$i]);
+						$tb="Product_Options";
+						$onchange = "onchange=\"this.form.submit()\"";
+						unset($where);
+						$recs=get_records($tb,"Name, record_number",$where,"Name","ASC");
+						print "<select $onchange class=\"option_name\" name=\"$field_name"."[".$i++."]\">\r";
+						print "<option selected value=\"----\"></option>\r";
+						unset($s);
+						for($s=0;$recs[$s];$s++){
+							$rec=$recs[$s];
+						    unset($sel);
+						    if($rec["record_number"] == $option) $sel = "SELECTED";
+						    print "<option $sel value=\"".$rec["record_number"]."\">".$rec["Name"]."</OPTION>\r";
+							}
+						print "</select>\r";
+	
+						$o_value = htmlspecialchars($options_exp[$i]);
+						$tb="Product_Option_Values";
+						$where = "Option_Name = \"$option\"";					
+						if ($option) $recs=get_records($tb,0,$where,"Option_Value","ASC");
+						print "<select class=\"option_value\" name=\"$field_name"."[".$i++."]\">\r";
+						print "<option selected value=\"----\"></option>\r";
+						unset($s);
+						for($s=0;$recs[$s];$s++){
+							$rec=$recs[$s];
+						    unset($sel);
+						    if($rec["record_number"] == $o_value) $sel = "SELECTED";
+						    print "<option $sel value=\"".$rec["record_number"]."\">".$rec["Option_Value"]."</OPTION>\r";
+							}
+						print "</select>\r";
+	
+						$o_price = htmlspecialchars($options_exp[$i]);
+						print "<input class=\"option_price\" type=\"text\" name=\"$field_name"."[".$i++."]\" value=\"$o_price\">\r";
+						$o_weight = htmlspecialchars($options_exp[$i]);
+						print "<input class=\"option_weight\" type=\"text\" name=\"$field_name"."[".$i++."]\" value=\"$o_weight\">\r";
+						print "<input class=\"option_checkbox\" type=\"checkbox\" name=\"options_del[]\" value=\"".($i-4).",".($i-3).",".($i-2).",".($i-1)."\"><br>\r";
+	
+						} // end of FOR loop
+						if ($options_exp[0]) print "<br><br>\r";
+						print "<input type=\"submit\" name=\"add_option\" value=\"add option(s):\"> <input size=\"1\" type=\"text\" value=\"1\" name=\"new_option_count\"><br><br>";
+						print "</span>";
+				}
+		} else {	
+				if($display_field_name) print "<font class=\"field_name\">$current$field_name_nu: </font>";
+				print "<input id='$field_name'  style='' class=\"field_input\" type=\"text\" name=\"$field_name\" value=\"".htmlspecialchars($field_value[$x])."\"><br>\n";
+		} //end of IF - ELSE
+	}
+	}
+}
+
+	} else {
+		if(!$add_new_item){
+		// if in this section, current field name is record_number
+			if($table != "Store_Information" && $table != "Address_Form_Settings") {
+				print "<span class=\"field_name\">$field_name_nu: </span>\r
+					<span class=\"record_number\">".$field_value[$x]."</span><br>\r";
+			}
+				print "<input type=\"hidden\" name=\"record_number\" value=\"".$field_value[$x]."\">\r";
+		}
+					print "<input type=\"hidden\" name=\"upload\" value=\"$uploads\">\n
+					<br>\n";
+	} //end of IF - ELSE
+
+// runs if function is specified to either run after, or surround field
+		if($is_function) {
+			if($functions[$field_name]["Mode"]==2){
+				eval($functions[$field_name]["Function"]);
+			}
+			if ($functions[$field_name]["Mode"]==4){
+				eval($functions[$field_name]["Function_Footer"]);
+
+				eval($functions[$field_name]["Function_Footer"]);
+			}
+		}
+
+
+} // end of FOR
+
+print "<input type=\"hidden\" name=\"table\" value=\"customers\">\n
+<br><div style=\"width: 100%; text-align:center; padding-bottom: 15\">
+<span style='width: 50%; text-align: center'><input style='width: 100' type='submit' name='sql_action' value='Submit Record' ></span>";
+
+// determine whether to show delete button or not
+if ($selected_record_number) {
+	$delete_inhibit = get_field_val("Table_Definition","Delete_Inhibit_Records","Table_Name = '$table'");
+	if (!$delete_inhibit) $delete_inhibit = get_field_val("Record_Definition","Delete_Inhibit","Table_Name = '$table' AND Record = $selected_record_number");
+}
+if ($table !="Store_Information" && $table!="Address_Form_Settings" && !$delete_inhibit) print "<span style='width: 49%; text-align: center'><input type='submit' name='sql_action' value='Delete Record'></span>";
+
+// show a link to define record, only if developer
+if (security_level("Squirrelcart Developer")) {
+	$rd_rn = get_field_val("Record_Definition","record_number","Table_Name = '$table' AND Record = '$selected_record_number'");
+	// if record is already defined, link will allow you to edit existing Record_Definition table record
+	if ($rd_rn) {
+		$rd_href = $SC['www_admin_page']."?edit_records=1&selected_record_number=$rd_rn&table=Record_Definition";
+	} else {
+	// if record is not already defined, link will allow you to create a new Record_Definition table record
+		$rd_href = $SC['www_admin_page']."?add_new_item=1&table=Record_Definition&Table_Name=$table&Record=$selected_record_number";
+	}
+	print "<br><br><a href=\"$rd_href\">Define Record</a><br>";
+}
+
+print "</div>\n
+<input type=\"hidden\" name=\"selected_record_number\" value=\"$rn\" >\n
+<input type=\"hidden\" name=\"table\" value=\"$table\">\n
+	<input type=\"hidden\" name=\"select_key1\" value=\"$select_key1\">\n
+	<input type=\"hidden\" name=\"select_key2\" value=\"$select_key2\">\n";
+if ($add_new_item) print "<input type=\"hidden\" name=\"record_new\" value=\"yes\">\n";
+print "
+</form>\r
+</div>\r
+";
+	}
+?>

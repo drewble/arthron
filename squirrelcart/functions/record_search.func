@@ -1,0 +1,113 @@
+<?
+// returns a where statement to be placed in a query for record searches
+//
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+//
+function record_search($mode,$table,$qry_fields=0,$template=0){
+global
+$in_admin_section,$db,$cart_isp_root,$qry,$action,$search_type,$where,$SC;
+
+//----------------- set variables --------------------------//
+$Advanced_Search_Link = "<a href=\"$SC[www_cart_page]?search_mode=advanced$SC[SID]\">advanced search</a>\r";
+
+$Search_Advanced_Submit_Button = get_image("Images","advanced_search_button",0,0,1);
+$Search_Advanced_Submit_Button = "<input type=\"image\" src=\"$Search_Advanced_Submit_Button\">";
+$Search_Simple_Submit_Button = get_image("Images","simple_search_button",0,0,1);
+$Search_Simple_Submit_Button = "<input type=\"image\" border=\"0\" src=\"$Search_Simple_Submit_Button\">";
+
+if (!$qry) {
+	$qry_value = "Search";
+	} else {
+	$qry_value = $qry;
+	}
+	
+if($mode=="message") {
+	$qry_no_results_msg = "Query returned no matches\r";
+	print $qry_no_results_msg;
+} else {
+
+	// if not searching, show search form
+	if ($mode == "advanced") {
+		// -------- determine which options to show as selected ----------------------------//
+		if ($search_type=="all") $all_sel = "SELECTED";
+		if (!$search_type || $search_type=="any") $any_sel = "SELECTED";
+		if ($search_type=="exact") $exact_sel = "SELECTED";
+		//--------------- set variables for use in the template ---------------------------//
+		$Search_Type_Field = "
+		<select name=\"search_type\">\r
+		<option value=\"all\" $all_sel>All the Words</option>\r
+		<option value=\"any\" $any_sel>Any of the Words</option>\r
+		<option value=\"exact\" $exact_sel>Exact Phrase</option>\r
+		</select>\r";
+	}
+	// remove extra spaces in middle of string
+	$qry = ereg_replace (' +', ' ', $qry);
+	// remove leading and trailing spaces
+	$qry = trim($qry);
+	// remove  
+	$qry = str_replace(" ","",$qry);
+
+// --------- setup qry -----------------------------//
+	if ($search_type == "exact") {
+		$qry_exp[] = $qry;
+	} else {
+		// -------- if not searching for a phrase ---------//
+		// get query into an array, each element is one word typed into qry field
+		$qry_exp=explode(" ",$qry);
+	}
+
+	// set fields you want to search in product record
+	if (!$qry_fields) $qry_fields = get_fields($db,$table);
+
+	// loop through qry words and create where string
+	unset($where);
+	unset($qry_word);
+	for($x=0;$qry_exp[$x];$x++){
+		$where = $where."(";          // if where is not set, start where string
+		$qry_word=$qry_exp[$x];
+		$qry_word = "%$qry_word%";
+		// --------- loop through each field that is to be searched --------//
+		for ($i=0;$qry_fields[$i];$i++){
+			$qry_field = $qry_fields[$i];
+			//---------- to search for qry_word in category, the query word must be translated to a number
+			if($qry_field == "Category") {
+				$newqry_word = get_records("Categories","record_number","Name LIKE \"%$qry_word%\"",0,0);
+				$newqry_word = $newqry_word[0]["record_number"];
+				$where = $where."$qry_field LIKE \"$newqry_word\"";
+			} else 	{
+				$where = $where."$qry_field LIKE \"$qry_word\"";
+			}
+			if ($qry_fields[$i+1]) $where = $where." OR ";
+		}
+		$where = $where.")";
+		if ($qry_exp[$x+1]) {
+			if ($search_type == "all")	$where = $where." AND ";
+			if ($search_type == "any")	$where = $where." OR ";
+			}
+		}
+	//------------- determine number of results and set into variable ---------------------///
+	if ($where) {         // determine number of results gathered
+		if(!$in_admin_section) $where = $where." AND Not_For_Sale != '1'";
+		$Search_Results = get_records($table,"record_number",$where,0,0,0);
+		$Search_Results = count($Search_Results);
+		if ($Search_Results == 1 ) {
+			$matches = "match";
+		} else {
+			$matches = "matches";
+		}		
+	} else {
+		$matches = "matches";
+		$Search_Results = "no";
+	}
+	$SC["Search_Results"] = "Search returned $Search_Results $matches.";
+
+	if(!$template){
+		if ($mode=="advanced") include $SC[templates][search_advanced];
+		if ($mode == "simple") include $SC[templates][search_simple];
+	} else {
+		include $template;
+	}
+	return $where;
+}
+}
+?>

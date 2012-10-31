@@ -1,0 +1,48 @@
+<?
+// file modified on 8/13/2003 for v1.2.0 to fix premature storage of order info in the database
+// file modified on 7/15/2003 for v1.1.1 to fix session loss when not using cookies
+//
+// purpose of function is to place order with payment gateway
+function place_order(){
+global
+$SC,$REMOTE_ADDR;
+
+	//-------- set order number ----------------//
+	$Order_Number = gen_order_number();
+
+// ----------- payment processing section via payment gateways ------------------------//
+	$Final_Payment_Image = get_image("Images","final_payment");
+	$SC['order']['number'] = $Order_Number;
+	$SC['order']['Order_Date'] = date("Y-m-d H:i:s");
+	$SC['order']['Description'] = "Order placed at ".$SC['site_www_root'];
+	$order = $SC[order];		 // shorten order variable for easier use in gateway forms
+	// set country info in case needed in a gateway below
+	$order['Bill_Addr']['Country_Alpha_2'] = get_field_val("Countries","Alpha_2","record_number = '".$order['Bill_Addr']['Country']."'");
+	$order['Bill_Addr']['Country_Alpha_3'] = get_field_val("Countries","Alpha_3","record_number = '".$order['Bill_Addr']['Country']."'");
+	$order['Ship_Addr']['Country_Alpha_2'] = get_field_val("Countries","Alpha_2","record_number = '".$order['Ship_Addr']['Country']."'");
+	$order['Ship_Addr']['Country_Alpha_3'] = get_field_val("Countries","Alpha_3","record_number = '".$order['Ship_Addr']['Country']."'");
+	$gateway_module = get_field_val("Payment_Gateways","Module_Name","Enabled = \"1\"");
+
+// set payment gateway field values into this variable for use in the payment gateway module
+	$Payment_Gateway = get_records("Payment_Gateways",0,"Enabled = \"1\"",0,0);
+	$Payment_Gateway = $Payment_Gateway[0];
+
+// set return variables if supported
+	if ($Payment_Gateway['Return_to_Storefront']) {
+		$Accepted_Return_URL = $SC['secure_cart_page']."?cc_return=1$SC[SID]";
+		$Declined_Return_URL = $SC['secure_cart_page']."?cc_return=2$SC[SID]";
+		$Error_Return_URL = $SC['secure_cart_page']."?cc_return=5$SC[SID]";
+	}
+	if ($gateway_module && ($SC['pay_info']['is_cc'] || $SC['pay_info']['is_echeck'])) include $SC['payment_module_path']."/$gateway_module";
+
+// ---------- PayPal section --------------------------------------------------------------------//
+	if ($SC['order']['pay_info']['method'] == "PayPal") {
+		$PayPal_Button = get_image("Cart_Images","PayPal Button",0,0,1);
+		include $SC['payment_module_path']."/paypal.php";
+	}
+// ---------- Check or Money Order section --------------------------------------------------------------------//
+	if ($SC['order']['pay_info']['method'] == "Check or Money Order") {
+		include $SC['payment_module_path']."/check.php";
+	}
+}
+?>

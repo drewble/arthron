@@ -1,0 +1,286 @@
+<?php
+/*
+purpose of function is to display the form for collecting address info from customer, and handle it when it posts data
+
+file modified on 11/24/03 for v1.4.0 to support setting all shipping fields the same as billing via javascript
+file modified on 12/09/2003 for v1.4.0 to support setting default and first country in select inputs
+*/
+
+function address_info(){
+	global
+	$SC,$show_login,$post_shipping_info,$Bill_Addr,$Ship_Addr,$same_as_billing,$update_account,$post_add_user,$add_usr,$added_account,$modify_account,$modified_account,$payment_info,$shipping_method,$show_cart,$HTTP_POST_VARS;
+
+	// posting form
+	if ($Bill_Addr) {
+		$SC['order']['same_as_billing'] = $same_as_billing;
+	} else {
+		$same_as_billing = $SC['order']['same_as_billing'];
+	}
+
+	// ---------------  if logged in, don't EVER show login box!!!!! ---------------------------------------------------------------------------------//
+	if($SC['user']) {
+		unset($show_login);
+	}
+		
+	//--------------- set what to display for required and missing fields --------------------------------------------------------------------------//
+	include $SC['cart_isp_root']."/form_config.php";
+
+	$Special_Instructions = $SC['order']['Ship_Addr']['Special_Instructions'];
+	$Shipping_Address_Image = get_image("Images","shipping_address");
+	$Billing_Address_Image = get_image("Images","billing_address");
+	
+	
+	//---------------- set value of input checkbox to set shipping address the same as billing address ------------------------------------------//
+	if ($same_as_billing) $same_as_checked = "checked";
+	$Same_as_Billing = "<tr><td class='field_name'></td><td style='text-align: left'><input onClick=\"javascript: if(this.checked == 1) billing_same()\" type=\"checkbox\" value=\"1\" name=\"same_as_billing\" $same_as_checked> Same as billing address</td></tr>";
+
+	//--------------- set what fields are on forms --------------------------------------------------------------------------------------------------------//
+	$fields_billing = get_field_array("Address_Form_Settings","Billing_Fields","record_number = '1'");
+	$fields_shipping = get_field_array("Address_Form_Settings","Shipping_Fields","record_number = '1'");
+		
+	//--------------- set what fields are required ---------------------------------------------------------------------------------------------------------//
+	$required['Bill'] = get_field_array("Address_Form_Settings","Required_Billing_Fields","record_number = '1'");
+	$required['Ship'] = get_field_array("Address_Form_Settings","Required_Shipping_Fields","record_number = '1'");
+		
+	//--------------- section to handle posted data ------------------------------------------------------------------------------------------------------//
+	if($post_shipping_info){ // if not posting the info on the shipping info pages, show forms to get this info
+		// -------- erase shipping method from SESSION variable, because shipping location might be changing
+		unset($SC['order']['shipping']);
+	
+		// ----------------- set shipping info into SESSION variable ------------------------------------------//
+		$SC['order']['Bill_Addr'] = $Bill_Addr;				// set billing address in SESSION
+		if ($same_as_billing) {												// set shipping address in SESSION
+			$SC['order']['Ship_Addr'] = $Bill_Addr;
+			$SC['order']['Ship_Addr'][Special_Instructions] = $Ship_Addr['Special_Instructions'];
+		} else {
+			$SC['order']['Ship_Addr'] = $Ship_Addr;
+		}
+				
+		// -------- Add state abbrev to session for payment gateway use -----------------//
+		$state_abbrev = get_field_val("States","Abbreviation","record_number = \"".$SC['order']['Bill_Addr'][State_or_Province]."\"");
+		$SC['order']['Bill_Addr'][State_Abbrev] = $state_abbrev;			
+		$state_abbrev = get_field_val("States","Abbreviation","record_number = \"".$SC['order']['Ship_Addr'][State_or_Province]."\"");
+		$SC['order']['Ship_Addr'][State_Abbrev] = $state_abbrev;			
+		// ---------- add actually country and state name to SESSION for use in payment gateway ---------//
+		$state = get_field_val("States","Name","record_number = \"".$SC['order']['Bill_Addr'][State_or_Province]."\"");
+		$SC['order']['Bill_Addr'][State_or_Province_Display]=$state;
+		$state = get_field_val("States","Name","record_number = \"".$SC['order']['Ship_Addr'][State_or_Province]."\"");
+		$SC['order']['Ship_Addr'][State_or_Province_Display]=$state;
+		$country = get_field_val("Countries","Name","record_number = \"".$SC['order']['Bill_Addr'][Country]."\"");
+		$SC['order']['Bill_Addr'][Country_Display]=$country;
+		$country = get_field_val("Countries","Name","record_number = \"".$SC['order']['Ship_Addr'][Country]."\"");
+		$SC['order']['Ship_Addr'][Country_Display]=$country;
+
+		// add ISO 3166 country codes to session for use in payment gateways
+		$alpha_2 = get_field_val("Countries","Alpha_2","record_number = \"".$SC['order']['Bill_Addr']['Country']."\"");
+		$alpha_3 = get_field_val("Countries","Alpha_3","record_number = \"".$SC['order']['Bill_Addr']['Country']."\"");
+		$numeric_code = get_field_val("Countries","Numeric_Code","record_number = \"".$SC['order']['Bill_Addr']['Country']."\"");
+		$SC['order']['Bill_Addr']['Country_Alpha_2'] = $alpha_2;
+		$SC['order']['Bill_Addr']['Country_Alpha_3'] = $alpha_3;
+		$SC['order']['Bill_Addr']['Country_Numeric_Code'] = $numeric_code;
+		$alpha_2 = get_field_val("Countries","Alpha_2","record_number = \"".$SC['order']['Ship_Addr']['Country']."\"");
+		$alpha_3 = get_field_val("Countries","Alpha_3","record_number = \"".$SC['order']['Ship_Addr']['Country']."\"");
+		$numeric_code = get_field_val("Countries","Numeric_Code","record_number = \"".$SC['order']['Ship_Addr']['Country']."\"");
+		$SC['order']['Ship_Addr']['Country_Alpha_2'] = $alpha_2;
+		$SC['order']['Ship_Addr']['Country_Alpha_3'] = $alpha_3;
+		$SC['order']['Ship_Addr']['Country_Numeric_Code'] = $numeric_code;
+				
+		// ---------------- check required fields to see if they have been filled out -----------------------//
+		$a[] = "Bill";
+		if (!$same_as_billing) $a[] = "Ship";
+		for($x=0;$required[$a[$x]];$x++) { //---- loop through Bill and Ship
+			for($i=0;$required[$a[$x]][$i];$i++){ //----------- loop through each required field
+				$checkfield = $required[$a[$x]][$i];
+				// ----------- actual validation check below ---------------------------------//
+				if($a[$x] == "Bill"){
+					if (!$Bill_Addr[$checkfield] || $Bill_Addr[$checkfield] == "null") $missing['Bill_Addr'][$checkfield] = 1;
+				}
+				if($a[$x] == "Ship"){
+					if (!$Ship_Addr[$checkfield]  || $Ship_Addr[$checkfield] == "null") $missing['Ship_Addr'][$checkfield] = 1;
+				}
+			}
+		}
+
+		if ($missing) {
+			$all_fields_filled = 0;
+			$SC['order']['Bill_Addr']['missing'] = 1;
+			$SC['order']['Ship_Addr']['missing'] = 1;
+		} else {
+			$all_fields_filled = 1;
+			unset($SC['order']['Bill_Addr']['missing']);
+			unset($SC['order']['Ship_Addr']['missing']);
+					
+			//=======================================================================//
+			//                update account for existing users                                                                                                                        //
+			//=======================================================================//
+			if ($update_account && $SC[user]) {			// if user is logged in, and checked update account box
+				$rn = $SC['user']['record_number'];
+				modify_record("Customers","record_number = \"$rn\"",$fields_billing,$Bill_Addr);	// modify record
+				// --- reset user in SESSSION so that changes will take effect immediately --//
+				$new_user = get_records("Customers",0,"record_number = \"$rn\"",0,0);
+				$SC['user'] = $new_user[0];
+			}
+				
+			// ------------- trigger shipping method form ---------------//
+			$shipping_method=1;
+		}
+	} // end of handling posted data
+	
+
+	if (!$all_fields_filled){
+		if (!$missing) unset($Missing_Field_Msg);
+		if(!$show_login) include $SC['templates']['ship_header'];
+		if (!$SC["user"]) {
+			if (!$show_login) { 
+				print "<span style='width:100%; text-align:center'>Are you a returning customer? <a style=\"color: blue; text-decoration: underline\"  href=\"?show_login=1&show_cart=1&shipping_info=1\" >Login here</a> for easier ordering!</span>\r";
+			} else {
+				include "$SC[cart_isp_root]/login.php";
+			}
+		}
+		$fill = get_records("Field_Definition","*","Table_Name = 'Customers' AND Display_As = 'Select Input'");
+		
+		// ------------------ set variables for use in  billing address template -----------------------//
+		if ($SC['user']) $Logged_in_as = "You are logged in as ".$SC['user']['Username']."<br>";
+		$user = $SC['user'];
+		if ($SC['user']) $Update_Account = "<tr><td class='field_name'></td><td style='text-align: left'><input name = \"update_account\" type=\"checkbox\" value=\"1\" checked> Add changes to my account</td></tr>";
+		// ----------------------------- show bill to and ship to form fields -----------------------------------------//
+		if (!$show_login) {
+			$addr_type[0] = "Bill_Addr";
+			$addr_type[1] = "Ship_Addr";
+			for($w=0;$addr_type[$w];$w++) {
+				if($addr_type[$w] == "Bill_Addr") include $SC['templates']['ship_billing_address_header'];
+				if($addr_type[$w] == "Bill_Addr" || $same_as_billing) {
+					// case for shipping info form being posted
+					if($Bill_Addr) {
+						$state_value = $Bill_Addr[State_or_Province];
+						$country_value = $Bill_Addr[Country];
+					} else {
+						// pull from previously entered info - this is when they fill out form, THEN click edit link to change the info
+						if($SC['order']['Bill_Addr']) {
+							$state_value = $SC['order']['Bill_Addr']['State_or_Province'];
+							$country_value = $SC['order']['Bill_Addr']['Country'];
+						} else {
+							// form has never been filled out, but user is logged in. pull from user's login info
+							if(!$state_value && $SC['user']) $state_value = $SC['user']['State_or_Province'];
+							if(!$country_value && $SC['user']) $country_value = $SC['user']['Country'];
+						}
+					}
+				}
+				if($addr_type[$w] == "Ship_Addr") {
+					include $SC[templates][ship_shipping_address_header];
+					$user = ""; // clear user for ship to field. Will be captured possibly later via address book entries
+					if(!$same_as_billing) {
+						$state_value = $SC['order']['Ship_Addr']['State_or_Province'];
+						$country_value = $SC['order']['Ship_Addr']['Country'];
+					}
+				}
+			
+				if(!$HTTP_POST_VARS) { // if form not yet submitted
+					$country_value = get_field_val("Address_Form_Settings","Default_Country"); // grab default country and set as selected in select inputs
+					$first_country = get_field_val("Address_Form_Settings","First_Country"); // grab first country for select inputs
+				}
+			
+				// ---------these 2 variables are dependent on whether $user is set, so they are included here instead above
+				$fill['State_or_Province']['Field_Name']=$addr_type[$w]."[State_or_Province]";	
+				$State = get_defined_field("Customers","State_or_Province",$SC[user][record_number],0,"no",0,"$addr_type[$w][State_or_Province]",$state_value);
+				$State = str_replace("style='' id='State_or_Province'", "id=\"".$addr_type[$w]."_State_or_Province\"",$State); // add ID field to state field
+				$fill['Country']['Field_Name']=$addr_type[$w]."[Country]";
+	
+				$countries_from_settings = get_field_array("Address_Form_Settings","Countries","record_number = '1'",$seperator="^^");
+				$Country = "<select id=\"".$addr_type[$w]."_Country\" name=\"".$addr_type[$w]."[Country]\">\n";
+				$Country = $Country."<option value=\"\"></option>\n";
+				if ($first_country) { // add first country from address form settings as first option in select input
+					$first_country_name = get_field_val("Countries","Name","record_number = $first_country");
+					if ($country_value == $first_country) $first_country_selected = "selected";
+					$Country .= "<option $first_country_selected value=\"$first_country\">$first_country_name</option>\n";
+				}
+				for($c=0;$countries_from_settings[$c];$c++){
+					$country_from_setting = $countries_from_settings[$c];
+					$country_from_setting = mysql_escape_string($country_from_setting);
+					$country_rn = get_field_val("Countries","record_number","Name = '$country_from_setting'");
+					if($country_value == $country_rn) {
+						$selected = "selected";
+					} else {
+						unset($selected);
+					}
+					$Country=$Country."<option $selected value=\"$country_rn\">$country_from_setting</option>\n";
+				}
+				$Country = $Country."</select>\n";
+				$address_is_value =  $SC['order']['Ship_Addr']['Address_Is'];
+				if (!isset($address_is_value)) $address_is_value = get_field_val("Address_Form_Settings","Default_for_Address_Is");
+				if ($address_is_value == 1) $selected1 = "checked";
+				if ($address_is_value == 2) $selected2 = "checked";
+				$Address_Is = "<input id=\"$Ship_Addr_Address_Is\" type=\"radio\" $selected1 value=\"1\" name=\"".$addr_type[$w]."[Address_Is]\"> Residential ";
+				$Address_Is .= "<input id=\"$Ship_Addr_Address_Is\" type=\"radio\" $selected2 value=\"2\" name=\"".$addr_type[$w]."[Address_Is]\"> Commercial ";
+					
+				//----- set list of all required fields -------------------------//		
+				if ($addr_type[$w] == "Bill_Addr") $required_fields = $required['Bill'];
+				if ($addr_type[$w] == "Ship_Addr")  $required_fields = $required['Ship'];
+					
+				//---------------------- loop through all fields and display fields for user entry on shipping forms --------------------//
+				if ($addr_type[$w] == "Bill_Addr") $fields = $fields_billing;
+				if ($addr_type[$w] == "Ship_Addr") $fields = $fields_shipping;
+	
+				for($x=0;$fields[$x];$x++){ 
+					$field=$fields[$x];
+
+					// generate javascript function for setting all shipping fields when same as billing is checked
+					if($addr_type[$w] == "Bill_Addr") {
+						if (in_array($field,$fields_shipping)) {
+							$js .= "document.address_form.Ship_Addr_$field.value = document.address_form.Bill_Addr_$field.value\n";
+						}
+					}
+
+					//------------- set variables for use in template ----------------------------//
+					$Field_Descriptor = str_replace("_"," ",$field);
+					$Field_Name = $addr_type[$w]."[".$field."]";
+					$Field_Id = $addr_type[$w]."_$field";
+					if(!$SC['order'][$addr_type[$w]]) {
+						$Field_Value = $user[$field];
+					} else {
+						$Field_Value = $SC['order'][$addr_type[$w]][$field];
+					}	
+					if (in_array($field, $required_fields)) {
+						if($missing[$addr_type[$w]][$field]) {
+							$Required = $missing_ind;
+						} else {
+							$Required = $required_ind;
+						} 
+					} else {
+						unset($Required);
+					}
+					if ($field=="State_or_Province") {
+						print "
+						<tr><td style='text-align: right'><span class=\"field_name\">$Field_Descriptor: </span></td><td style='text-align:left; width: 324'>$State$Required</td></tr>";
+					} else {
+						if ($field == "Country") {
+							print "<tr><td style='text-align: right'><span class=\"field_name\">$Field_Descriptor: </span></td><td style='text-align:left'>$Country<span style=\"width: 20\">$Required</span></td></tr>";
+						}  else {
+							if ($field == "Address_Is") {
+								print "<tr><td style='text-align: right'><span class=\"field_name\">$Field_Descriptor: </span></td><td style='text-align:left'>$Address_Is<span style=\"width: 20\">$Required</span></td></tr>";
+							} else {
+								include $SC['templates']['ship_fields'];
+							}
+						}
+					}
+				} // end of FOR loop
+				if ($addr_type[$w] == "Bill_Addr") {
+					print "$Update_Account<br>";
+					include $SC['templates']['ship_billing_address_footer'];
+				}
+				if ($addr_type[$w] == "Ship_Addr") include $SC['templates']['ship_shipping_address_footer'];
+			} // end of FOR loop
+
+			// javascript to set all shippiung fields to same as billing
+			print "
+			<script type=\"text/javascript\">
+				function billing_same() {
+					$js
+				} 
+			</script>";			
+
+		} // end of IF statement
+		if(!$show_login) include $SC['templates']['ship_footer'];
+	}
+}
+?>

@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Arthron - Team Reference</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<script language="JavaScript" type="text/JavaScript">
+<!--
+function MM_reloadPage(init) {  //reloads the window if Nav4 resized
+  if (init==true) with (navigator) {if ((appName=="Netscape")&&(parseInt(appVersion)==4)) {
+    document.MM_pgW=innerWidth; document.MM_pgH=innerHeight; onresize=MM_reloadPage; }}
+  else if (innerWidth!=document.MM_pgW || innerHeight!=document.MM_pgH) location.reload();
+}
+MM_reloadPage(true);
+
+function MM_preloadImages() { //v3.0
+  var d=document; if(d.images){ if(!d.MM_p) d.MM_p=new Array();
+    var i,j=d.MM_p.length,a=MM_preloadImages.arguments; for(i=0; i<a.length; i++)
+    if (a[i].indexOf("#")!=0){ d.MM_p[j]=new Image; d.MM_p[j++].src=a[i];}}
+}
+
+function MM_findObj(n, d) { //v4.01
+  var p,i,x;  if(!d) d=document; if((p=n.indexOf("?"))>0&&parent.frames.length) {
+    d=parent.frames[n.substring(p+1)].document; n=n.substring(0,p);}
+  if(!(x=d[n])&&d.all) x=d.all[n]; for (i=0;!x&&i<d.forms.length;i++) x=d.forms[i][n];
+  for(i=0;!x&&d.layers&&i<d.layers.length;i++) x=MM_findObj(n,d.layers[i].document);
+  if(!x && d.getElementById) x=d.getElementById(n); return x;
+}
+
+function MM_nbGroup(event, grpName) { //v6.0
+  var i,img,nbArr,args=MM_nbGroup.arguments;
+  if (event == "init" && args.length > 2) {
+    if ((img = MM_findObj(args[2])) != null && !img.MM_init) {
+      img.MM_init = true; img.MM_up = args[3]; img.MM_dn = img.src;
+      if ((nbArr = document[grpName]) == null) nbArr = document[grpName] = new Array();
+      nbArr[nbArr.length] = img;
+      for (i=4; i < args.length-1; i+=2) if ((img = MM_findObj(args[i])) != null) {
+        if (!img.MM_up) img.MM_up = img.src;
+        img.src = img.MM_dn = args[i+1];
+        nbArr[nbArr.length] = img;
+    } }
+  } else if (event == "over") {
+    document.MM_nbOver = nbArr = new Array();
+    for (i=1; i < args.length-1; i+=3) if ((img = MM_findObj(args[i])) != null) {
+      if (!img.MM_up) img.MM_up = img.src;
+      img.src = (img.MM_dn && args[i+2]) ? args[i+2] : ((args[i+1])? args[i+1] : img.MM_up);
+      nbArr[nbArr.length] = img;
+    }
+  } else if (event == "out" ) {
+    for (i=0; i < document.MM_nbOver.length; i++) {
+      img = document.MM_nbOver[i]; img.src = (img.MM_dn) ? img.MM_dn : img.MM_up; }
+  } else if (event == "down") {
+    nbArr = document[grpName];
+    if (nbArr)
+      for (i=0; i < nbArr.length; i++) { img=nbArr[i]; img.src = img.MM_up; img.MM_dn = 0; }
+    document[grpName] = nbArr = new Array();
+    for (i=2; i < args.length-1; i+=2) if ((img = MM_findObj(args[i])) != null) {
+      if (!img.MM_up) img.MM_up = img.src;
+      img.src = img.MM_dn = (args[i+1])? args[i+1] : img.MM_up;
+      nbArr[nbArr.length] = img;
+  } }
+}
+
+function MM_goToURL() { //v3.0
+  var i, args=MM_goToURL.arguments; document.MM_returnValue = false;
+  for (i=0; i<(args.length-1); i+=2) eval(args[i]+".location='"+args[i+1]+"'");
+}
+
+function MM_showHideLayers() { //v6.0
+  var i,p,v,obj,args=MM_showHideLayers.arguments;
+  for (i=0; i<(args.length-2); i+=3) if ((obj=MM_findObj(args[i]))!=null) { v=args[i+2];
+    if (obj.style) { obj=obj.style; v=(v=='show')?'visible':(v=='hide')?'hidden':v; }
+    obj.visibility=v; }
+}
+
+function MM_swapImgRestore() { //v3.0
+  var i,x,a=document.MM_sr; for(i=0;a&&i<a.length&&(x=a[i])&&x.oSrc;i++) x.src=x.oSrc;
+}
+
+function MM_swapImage() { //v3.0
+  var i,j=0,x,a=MM_swapImage.arguments; document.MM_sr=new Array; for(i=0;i<(a.length-2);i+=3)
+   if ((x=MM_findObj(a[i]))!=null){document.MM_sr[j++]=x; if(!x.oSrc) x.oSrc=x.src; x.src=a[i+2];}
+}
+//-->
+</script>
+</head>
+
+<body onLoad="MM_preloadImages('Images/NavButtons/home-dn.gif','Images/NavButtons/sports-injuries-dn.gif','Images/NavButtons/team-ref-dn.gif','Images/NavButtons/injusr-prot-dn.gif','Images/NavButtons/prof-products-dn.gif','Images/NavButtons/order-dn.gif','Images/NavButtons/contact_us_dn.gif','Images/NavButtons/team-ref-up.gif','Images/IPPImpact_O.gif','Images/IPPImpact_U.gif','Images/IPPCTWrap_O.gif','Images/IPPCTWrap_U.gif','Images/IPPSling_O.gif')">
+<div id="LeftSidebar" style="position:absolute; width:91; height:864; z-index:2; left: 0; top: 0; visibility: visible;"><img src="Images/LeftSidebar.gif" width="91" height="864"></div>
+
+<div id="Header" style="position:absolute; width:709; height:91; z-index:1; left: 88px; top: 0px; visibility: visible;"><img src="Images/Header.gif" alt="header" width="1000" height="91" align="left"></div>
+<div id="Home" style="position:absolute; width:219px; height:83px; z-index:2; left: 386px; top: 2px; visibility: visible;"><img src="Images/NavHeaders/team_reference.gif" alt="home-header" width="221" height="84"></div>
+<div id="Nav" style="position:absolute; width:200px; height:73px; z-index:1; left: 129px; top: 91px; visibility: visible;">
+  <table border="0" cellpadding="0" cellspacing="0">
+    <tr> 
+      <td><a href="home.htm" target="_top" onClick="MM_nbGroup('down','group1','home','Images/NavButtons/home-dn.gif',1)" onMouseOver="MM_nbGroup('over','home','Images/NavButtons/home-dn.gif','Images/NavButtons/home-dn.gif',1)" onMouseOut="MM_nbGroup('out')"></a><a href="home.htm" target="_top" onClick="MM_nbGroup('down','group1','home','Images/NavButtons/home-dn.gif',1)" onMouseOver="MM_nbGroup('over','home','Images/NavButtons/home-dn.gif','Images/NavButtons/home-dn.gif',1)" onMouseOut="MM_nbGroup('out')"></a><a href="home.htm" target="_top" onClick="MM_nbGroup('down','group1','home','Images/NavButtons/home-dn.gif',1)" onMouseOver="MM_nbGroup('over','home','Images/NavButtons/home-dn.gif','Images/NavButtons/home-dn.gif',1)" onMouseOut="MM_nbGroup('out')"></a><a href="home.htm" target="_top" onClick="MM_nbGroup('down','group1','home','Images/NavButtons/home-dn.gif',1)" onMouseOver="MM_nbGroup('over','home','Images/NavButtons/home-dn.gif','Images/NavButtons/home-dn.gif',1);MM_showHideLayers('IPPButtons','','hide')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/Home-up.gif" alt="home" name="home" hspace="2" border="0"></a></a></td>
+      <td><a href="SportsInjuries.htm" target="_top" onClick="MM_nbGroup('down','group1','SportsInjuries','Images/NavButtons/sports-injuries-dn.gif',1)" onMouseOver="MM_nbGroup('over','SportsInjuries','Images/NavButtons/sports-injuries-dn.gif','Images/NavButtons/sports-injuries-dn.gif',1);MM_showHideLayers('IPPButtons','','hide')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/sports-injuries-up.gif" alt="Sports Injuries" name="SportsInjuries" width="86" height="68" hspace="2" border="0"></a></td>
+      <td><a href="TeamReference.htm" target="_top" onClick="MM_nbGroup('down','group1','TeamReference','Images/NavButtons/team-ref-dn.gif',1)" onMouseOver="MM_nbGroup('over','TeamReference','Images/NavButtons/team-ref-dn.gif','Images/NavButtons/team-ref-dn.gif',1);MM_showHideLayers('IPPButtons','','hide')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/team-ref-dn.gif" alt="Team Reference" name="TeamReference" hspace="2" border="0" onLoad="MM_nbGroup('init','group1','TeamReference','Images/NavButtons/team-ref-up.gif',1)"></a></td>
+      <td><a href="InjuryProtection.htm" target="_top" onClick="MM_nbGroup('down','group1','InjuryProtection','Images/NavButtons/injusr-prot-dn.gif',1)" onMouseOver="MM_nbGroup('over','InjuryProtection','Images/NavButtons/injusr-prot-dn.gif','Images/NavButtons/injusr-prot-dn.gif',1);MM_showHideLayers('IPPButtons','','show')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/injury-prot-up.gif" alt="Injury Protection" name="InjuryProtection" hspace="2" border="0"></a></td>
+      <td><a href="ProfessionalProducts.htm" target="_top" onClick="MM_nbGroup('down','group1','ProfessionalProducts','Images/NavButtons/prof-products-dn.gif',1)" onMouseOver="MM_nbGroup('over','ProfessionalProducts','Images/NavButtons/prof-products-dn.gif','Images/NavButtons/prof-products-dn.gif',1);MM_showHideLayers('IPPButtons','','hide')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/prof-products-up.gif" alt="Professional Products" name="ProfessionalProducts" hspace="2" border="0"></a></td>
+      <td><a href="Order.htm" target="_top" onClick="MM_nbGroup('down','group1','Order','Images/NavButtons/order-dn.gif',1)" onMouseOver="MM_nbGroup('over','Order','Images/NavButtons/order-dn.gif','Images/NavButtons/order-dn.gif',1);MM_showHideLayers('IPPButtons','','hide')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/order-up.gif" alt="Order" name="Order" hspace="2" border="0"></a></td>
+      <td><a href="ContactUs.htm" target="_top" onClick="MM_nbGroup('down','group1','ContactUs','Images/NavButtons/contact_us_dn.gif',1)" onMouseOver="MM_nbGroup('over','ContactUs','Images/NavButtons/contact_us_dn.gif','Images/NavButtons/contact_us_dn.gif',1);MM_showHideLayers('IPPButtons','','hide')" onMouseOut="MM_nbGroup('out')"><img src="Images/NavButtons/contact_us_up.gif" alt="Contact Us" name="ContactUs" hspace="2" border="0"></a></td>
+    </tr>
+  </table>
+</div>
+<div id="PhoneNumber" style="position:absolute; left:1px; top:483px; width:87; height:17; z-index:9"><strong><img src="Images/800Number.gif" width="87" height="17"></strong></div>
+<div id="Layer1" style="position:absolute; left:113px; top:165px; width:654px; height:484px; z-index:10"> 
+  <div id="NoPain" style="position:absolute; left:6px; top:0px; width:557px; height:389px; z-index:5; visibility: visible;"> 
+    <p><img src="Images/TeamRef.gif" alt="TeamReference" width="552" height="419" border="0" usemap="#Map"> 
+      <map name="Map">
+        <area shape="rect" coords="173,155,272,177" href="#" onClick="MM_goToURL('parent','InjuryProtection.htm');return document.MM_returnValue">
+      </map>
+      <br>
+      <br>
+      <br>
+      <br>
+    </p>
+    </div>
+  <div id="Teams" style="position:absolute; left:375px; top:80px; width:153px; height:285px; z-index:6"><img src="Images/RefTxt1.gif" width="254" height="370"></div>
+</div>
+<div id="IPPButtons" style="position:absolute; left:471px; top:142px; width:109px; height:66px; z-index:11; visibility: hidden;"> 
+  <table width="107" border="0" cellspacing="0" cellpadding="0">
+    <tr> 
+      <td><a href="javascript:;" onClick="MM_goToURL('parent','InjuryProtection.htm');return document.MM_returnValue" onMouseOver="MM_showHideLayers('IPPButtons','','show');MM_swapImage('ImpactPads','','Images/IPPImpact_O.gif',1)" onMouseOut="MM_showHideLayers('IPPButtons','','hide');MM_swapImgRestore()"><img src="Images/IPPImpact_U.gif" alt="ImpactPads" name="ImpactPads" width="80" height="14" border="0" id="ImpactPads"></a></td>
+    </tr>
+    <tr> 
+      <td><a href="javascript:;" onClick="MM_goToURL('parent','CTWrap.htm');return document.MM_returnValue" onMouseOver="MM_swapImage('ImpactPads','','Images/IPPImpact_U.gif','CTWrap','','Images/IPPCTWrap_O.gif',1);MM_showHideLayers('IPPButtons','','show')" onMouseOut="MM_swapImgRestore();MM_showHideLayers('IPPButtons','','hide')"><img src="Images/IPPCTWrap_U.gif" alt="C/T Wrap" name="CTWrap" width="80" height="14" border="0" id="CTWrap"></a></td>
+    </tr>
+    <tr> 
+      <td><a href="javascript:;" onClick="MM_goToURL('parent','SlingWrap.htm');return document.MM_returnValue" onMouseOver="MM_swapImage('ImpactPads','','Images/IPPImpact_U.gif','CTWrap','','Images/IPPCTWrap_U.gif','SlingWrap','','Images/IPPSling_O.gif',1);MM_showHideLayers('IPPButtons','','show')" onMouseOut="MM_swapImgRestore();MM_showHideLayers('IPPButtons','','hide')"><img src="Images/IPPSling_U.gif" alt="Sling Wrap" name="SlingWrap" width="80" height="14" border="0" id="SlingWrap"></a></td>
+    </tr>
+  </table>
+  <br>
+</div>
+</body>
+</html>

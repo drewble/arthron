@@ -1,0 +1,395 @@
+<?
+// file modified on 9/29/2003 to convert http:// text in field data to links
+// file modified on 10/25/2003 to make image links in record table show popup window for editing
+// file modified on 12/03/2003 for v1.4.0 to resolve errors when viewing records in admin section
+//
+function Admin_Show_Records(){
+global
+$SC,$where,$show_record_links,$db,$sort_by,$sort_how,$cell_data_truncated_length,$start,$stop,$show_limit,$table,$delete_selected_records,$show_all_fields,$qry,$where,$in_admin_section;
+
+$table = $SC['edit_record']['table'];
+if($table == "Store_Information" || $table == "Address_Form_Settings") unset($table); 
+
+// store sort info in session for later use
+	if($sort_by) $SC['edit_record']['sort_by'] = $sort_by;
+	$sort_by = $SC['edit_record']['sort_by'];
+
+	if($sort_how) $SC['edit_record']['sort_how'] = $sort_how;
+	$sort_how = $SC['edit_record']['sort_how'];
+
+// shows thumbnail images instead of their path
+	$show_thumbnails = 1;
+	
+// grab some images for use
+	$checked_img = get_image("Cart_Images","checked");
+	$unchecked_img = get_image("Cart_Images","unchecked");	
+
+// can't show records in table if table hasn't been set!!
+	if ($table){
+// get variables from Table definition record, it it exists
+		if (get_field_val("Table_Definition","record_number","Table_Name = '$table'")) {		
+			$table_fields = get_field_array("Table_Definition","Table_Fields","Table_Name = '$table'");
+			$table_header = get_field_val("Table_Definition","Header","Table_Name = '$table'");
+			$table_footer = get_field_val("Table_Definition","Footer","Table_Name = '$table'");
+			$single_record_name = get_field_val("Table_Definition","Single_Record_Name","Table_Name = '$table'");
+			$no_new_records = get_field_val("Table_Definition","No_New_Records","Table_Name = '$table'");
+			if (!$single_record_name) $single_record_name = "Record";
+			$plural_record_name = get_field_val("Table_Definition","Plural_Record_Name","Table_Name = '$table'");
+			if (!$plural_record_name) $plural_record_name = "Records";
+			if (security_level("Store Admin") || security_level("Squirrelcart Developer")) {
+				if ($show_all_fields == "yes") 	$SC['show_all_fields'][$table] = 1;
+				if ($show_all_fields == "no") 	unset ($SC['show_all_fields'][$table]);
+				if ($SC['show_all_fields'][$table]) {
+					$show_all_fields_link = "<a class=\"admin_option_link\" style=\"width: 80\" href=\"?show_all_fields=no\">Hide Extra Fields</a>";
+					} else {
+						$show_all_fields_link = "<a class=\"admin_option_link\" style=\"width: 80\" href=\"?show_all_fields=yes\">Show All Fields</a>";
+				}
+			if (security_level("Squirrelcart Developer")) {
+				$table_def_rn = get_field_val("Table_Definition","record_number","Table_Name = '$table'");
+				$table_def_edit_link = "<a class='small_link' href='$SC[www_admin_page]?edit_records=1&selected_record_number=$table_def_rn&table=Table_Definition'>(edit)</a>";
+			}
+			}
+			} else {
+				$table_nu = str_replace("_"," ",$table);
+				$table_header = "This is the <b>$table_nu</b> table.";
+				if (security_level("Squirrelcart Developer")) $table_def_edit_link = "<a class='small_link' href='$SC[www_admin_page]?edit_records=1&table=Table_Definition&add_new_item=1&Table_Name=$table&Header=This%20is%20the%20<b>$table</b>%20table.'>(define table)</a>";
+		}
+
+// end of Table definition section
+//
+	//get field names, both sorted and unsorted
+	// if fields are specified via a record in the Table_Definition table, then use those, else show all fields.
+		if ($table_fields && !$SC[show_all_fields][$table]) {
+			$fields = $table_fields;
+			} else {
+				$fields=get_fields($db, $table);
+				$fields = $fields["unsorted"];
+		}
+		
+// determine if their are any special cases for fields. this saves execution time by not checking for every record, just for every field
+	for ($x=0;$fields[$x];$x++){
+		$field = $fields[$x];
+		// below is set if their is a field_def for this field
+		$field_def[$field] = get_records("Field_Definition","record_number","Table_Name = '$table' AND Field_Name = '$field' AND Input_Choices_Source = 'Field Values'");
+		// below is set if their is a relationship set for this field and this table is table_1 in the relationship record
+		$field_rel_tb1[$field] = get_records("Relationship","record_number","Table_1 = '$table' AND Manage_With_Table_1_Field = '$field'",0,0);
+		// below is set if their is a relationship set for this field and this table is table_2 in the relationship record
+		$field_rel_tb2[$field] = get_records("Relationship","record_number","Table_2 = '$table' AND Manage_With_Table_2_Field = '$field'",0,0);
+		// below is set if table we are on is the actual relationship table, and fieldname is either "Table_1" or "Table_2"
+		if ($field == "Table_1" || $field == "Table_2") $field_rel[$field] = get_records("Relationship","record_number","Relationship_Table = '$table'");
+		if ($field_def[$field] || $field_rel_tb1[$field] || $field_rel_tb1[$field] || $field_rel[$field]) $field_replace[$field] = 1;
+	}		
+	// don't need these anymore
+	unset ($field_def);
+	unset ($field_rel_tb1);
+	unset ($field_rel_tb2);
+	unset ($field_rel);
+   
+// if sort_by was set to a certain field, and table was just changed, this checks to see if that field name is still in the new table.
+// if its not, its unset so the $records variable will be captured properly
+		if (!in_array ($sort_by, $fields)) unset($sort_by);
+
+		
+	// if sort_by is not set, default it to the very first field that is displayed in the table
+		if (!$sort_by) $sort_by = $fields[0];
+		if (!$sort_how) $sort_how = "ASC";
+
+	//------------- choose sort options for table-----------------------------------------------
+		print "</form>\r";
+//------------END OF select table to modify, and display options ---------------------------//
+
+	// test section to choose record
+	if(!$selected_record_number || $show_record_links) {	// do not show links to records if you are editing a record. show_record_links will override
+
+	// link to truncate or not truncate long strings
+		if ($cell_data_truncated_length == 9999) {
+				$toggle_truncate_link = "<span style=\"margin-right: 20; width: 110\"><a class=\"admin_option_link\" href=\"?show_record_links=1&&cell_data_truncated_length=35\">Abbreviate Long Text</a></span>";
+			} else {
+				$toggle_truncate_link = "<span style=\"margin-right: 20; width: 80\"><a class=\"admin_option_link\" href=\"?show_record_links=1&cell_data_truncated_length=9999\">Display Full Text</a></span>";
+				}	
+		$new_item_link = "<a class=\"admin_option_link\" style=\"width: 120\" href=\"?add_new_item=1\">Add New $single_record_name</a>";
+		$delete_selected_records_link = "<a class=\"admin_option_link\" style=\"width: 140\" href=\"javascript:document.RecordTable.delete_selected_records.value='1';document.RecordTable.submit()\">Delete Selected $plural_record_name</a>";
+		if ($table == "Customers") $email_selected_users_link = "<a class=\"admin_option_link\" style=\"width: 140\" href=\"javascript:document.RecordTable.email_selected_users.value='1';document.RecordTable.submit()\">Email Selected Users</a>";
+//		$records_per_page = "Show <input style='height: 17' size=\"1\" type=\"text\" name=\"show_limit\" value=\"$show_limit\">".strtolower($plural_record_name)." per page";
+		
+		print "<span style='width: 600'>$table_header $table_def_edit_link</span>";
+		print "
+		<form name=\"RecordTable\" action=\"\" method=\"get\">
+		<input type='hidden' name='delete_selected_records' value=''>
+		<input type='hidden' name='email_selected_users' value=''>
+		<input type='hidden' name='table' value='$table'>";
+
+		// only show link to add new item if person is authorized
+		if (!($no_new_records && !security_level("Squirrelcart Developer"))) {
+			print "<span style=\"margin-right: 10\">$new_item_link</span>\n\r";
+		}
+
+		$delete_inhibit = get_field_val("Table_Definition","Delete_Inhibit_Records","Table_Name = '$table'");
+		if (!$delete_inhibit) print "<span style=\"margin-right: 10\">$delete_selected_records_link</span>\n\r"; // only show delete link if table is not set to delete inhibit all records
+		
+
+		if ($table == "Customers") print "<span style=\"margin-right: 10\">$email_selected_users_link</span>";
+		print "$toggle_truncate_link\n\r";
+		if ($show_all_fields_link)  print "<span style=\"margin-right: 10\">$show_all_fields_link</span>\n";
+		print "
+		<span style=\"margin-right: 10\">$records_per_page</span>\n\r";
+
+// search section
+		print "<span style='width:100%'>";
+		$in_admin_section = 1; $search_mode="advanced";
+		$search_template = "$SC[default_theme_dir]/search_advanced_noform.php";
+		include "$SC[cart_isp_root]/search_advanced.php";
+		print "</span>";
+		include "$SC[cart_isp_root]/search_results.php";
+
+	$number_of_records=count_records($table,$where);
+	if ($number_of_records){
+	//-----------set number of records to show per page --------------------//
+	//-------------- below is default option ----------------------------//
+		$show_limit_default = get_field_val("Store_Information","Records_per_Page","record_number = '1'");
+		if ($SC['edit_record']['show_limit']) $show_limit = $SC['edit_record']['show_limit'];
+		if(!$show_limit) $show_limit = $show_limit_default;
+		if($show_limit) $SC['edit_record']['show_limit'] = $show_limit;
+		if(!isset($start)) 	$start=0;
+		$stop = $start + $show_limit;
+	
+		// hide records when Hide_Record is set for the record, and person isn't developer
+		if ($table != "Record_Definition" && !security_level("Squirrelcart Developer")) $hide_records=1;
+		$records=get_records($table,0,$where,$sort_by,$sort_how,0,"LIMIT $start,$show_limit",$hide_records);
+		
+	//---------------------- navigation section ------------------------------------------------------------------------------------//
+		unset($Page_Navigation);
+	// if a record exists at the limit specified in the store settings
+		if ($number_of_records > $show_limit) {
+		//-------- only print link to previous page, if previous page exists --------------------------//
+			$prev_start = $start - $show_limit;
+			$prev_records = get_records($table,"record_number",$where,$sort_by,$sort_how,0,"LIMIT $prev_start,$show_limit");
+			if ($prev_records) {
+				$Page_Navigation = $Page_Navigation."<a style=\"text-decoration:underline; color: red\" href=\"?start=$prev_start\">Back</a>\r";
+			} else {
+				$Page_Navigation = $Page_Navigation."<font color=\"gray\" >Back</font>";
+			}
+			$Page_Navigation = $Page_Navigation."   ";
+		//------------ loop through products, and generate links to each page based on limit of items to show ------------//
+			for($page_num=1,$next_start=0;$next_start < $number_of_records;$next_start=$next_start+$show_limit,$page_num++){
+				if ($next_start == $start) {
+					$Page_Navigation = $Page_Navigation."<b>$page_num</b> \r";
+				} else {
+					$Page_Navigation = $Page_Navigation."<a style=\"text-decoration:underline; color: red\" href=\"?start=$next_start\">$page_num</a> \r";
+				}
+			}
+			$Page_Navigation = $Page_Navigation."   ";
+		//-------- only print link to next page, if next page exists --------------------------//
+			$more_records = get_records($table,"record_number",$where,$sort_by,$sort_how,0,"LIMIT $stop,$show_limit");
+			if ($more_records) {
+				$Page_Navigation = $Page_Navigation."<a style=\"text-decoration:underline; color: red\" href=\"?start=$stop\">Next</a>";
+			} else {
+				$Page_Navigation = $Page_Navigation."<font color=\"gray\" >Next</font>";
+			}
+			$Page_Navigation = $Page_Navigation."<br>";
+		}
+		print "<br>$Page_Navigation<br>";
+		print "<table border=0 cellspacing=0 cellpadding=2 valign=top style=\"border-bottom: solid silver 1; border-right: solid silver 1\">";
+		print "<tr>";
+		print "<td class='header_cell' style='border-left: black solid 1;'><span>Options</span></td>\r\n";
+		$small_checked_box = get_image("Cart_Images","small_checked_box");
+		$small_unchecked_box = get_image("Cart_Images","small_unchecked_box");
+		$current_url = "$SC[www_admin_page]?table=$table&show_record_links=1";
+		$select_all_lnk = "<a class='menuButton2' style='width: 12; margin-top:2' href=\"javascript:checkAll(document.RecordTable, 'checkbox', 1)\">$small_checked_box</a>";
+		$deselect_all_lnk = "<a class='menuButton2' style='width: 12;margin-top:2' href=\"javascript:checkAll(document.RecordTable, 'checkbox', 0)\">$small_unchecked_box</a>";
+		if (!$delete_inhibit) {
+			print "
+			<td class='header_cell' style='border-left: black solid 1' align='center'>
+			<span style='width: 28'>$select_all_lnk$deselect_all_lnk</span>
+			</td>\r\n";
+		}
+		$uploads=get_field_formats("Field_Definition",$table,"Display_As = 'Image Upload'");		// figure out which fields are for file uploads
+		$selects=get_field_formats("Field_Definition",$table,"Display_As = 'Select Input'");		// figure out which fields are for file uploads
+		
+		for($x=0;$fields[$x];$x++){
+			$field_name = $fields[$x];
+			$field_name_nu = str_replace("_"," ",$field_name);		// field name without the underscores
+			$field_name_nu = fix_reserved_mysql_values($field_name_nu);		// replace text that I use in MySQL to get around reserved values. for display purposes only
+
+			// if field is defined in Field Definition, and has a Descriptor, than this will grab that instead, for use as the column header, instead of the regular field name
+			$field_descriptor = get_field_val("Field_Definition","Descriptor","Table_Name = '$table' AND Field_Name = '$field_name'");
+			if ($field_descriptor) $field_name_nu = $field_descriptor;
+			if ($field_def[$field_name]['Descriptor']) $field_name_nu = $field_def[$field_name]['Descriptor']; // if field definition has a descriptor for this field, use that instead of the field name
+			// controls sorting by clicking on the column header. this toggles sort order back and forth
+			if($sort_by == $field_name) {
+				if ($sort_how == "ASC") {
+					$sort_how="DESC";
+					} else {
+						if ($sort_how == "DESC") $sort_how="ASC";
+				}
+			}
+			$header_width = strlen($field_name_nu) * 6;				
+			$row_header = "<a style='width: 100%' class=\"menuButton2\" href=\"?show_record_links=1&sort_by=$field_name&sort_how=$sort_how\">$field_name_nu</a>";
+			print "<td class=\"header_cell\"><span style='width: $header_width'>$row_header</span></td>";
+		}
+		print "</tr>";
+
+		for($x=0;$records[$x];$x++) {
+			$current_record = $records[$x];
+			$current_rn = $current_record[0];
+			if (is_int($x/2)) {;
+				$alternate_row_color = "#FFFFFF";
+				} else {
+				$alternate_row_color = "#D1FFE2";
+			}
+			$edit_record_HREF = "?edit_records=1&selected_record_number=$current_rn";
+			print "<tr bgcolor='$alternate_row_color'>";	
+			$edit_image = get_image("Cart_Images","edit record");
+			$copy_image = get_image("Cart_Images","copy record");
+			
+			print "
+			<td onmouseover=\"this.parentNode.style.background='yellow'\" onmouseout=\"this.parentNode.style.background='$alternate_row_color'\"
+class=\"non_header_cell\" bgcolor='#C0C0C0' style='border-left: black solid 1; border-right: black solid 1; border-bottom: black solid 1; padding: 0'>
+			<span style='width: 49; padding: 2'>
+			<a class='menuButton2' style='width: 15; margin: 0' href=\"$edit_record_HREF\">$edit_image</a>
+			<a class='menuButton2' style='width: 15; margin: 0' href=\"?copy_record=$current_rn\">$copy_image</a>
+			</span>
+			</td>";
+
+			if (!$delete_inhibit) {
+				print "
+				<td onmouseover=\"this.parentNode.style.background='yellow'\" onmouseout=\"this.parentNode.style.background='$alternate_row_color'\" class='non_header_cell'>
+					<input id='checkbox' name='selected_record[]' type='checkbox' value='$current_record[record_number]'>
+				</td>\r\n";
+			}		
+			for($a=0;$fields[$a];$a++){	// loop through each field in the table
+				$current_field_name = $fields[$a];	// capture field name for use later
+				$current_field_value = $current_record[$fields[$a]]; // capture the data that is in the current field
+				if($current_field_value) { // if field in record has data, show data, else show empty space
+					if ($field_replace[$current_field_name]) {
+						$cell_data = get_rel_value($table,$current_field_name,$current_field_value);
+						} else {
+							$cell_data = $current_field_value;
+							}
+					} else {
+						$cell_data = " ";
+						}
+
+
+
+// test section - for modifiying fields that are displayed as select inputs on the fly
+if ($selects[$current_field_name]) {
+//print $current_field_name."is a select input<br>";
+$test = get_defined_field($table,$current_field_name,$current_rn,0,0,0,"nfv",0);
+//print $test."<br>";
+}
+
+					
+						
+			// truncate long strings to make table smaller and easier to read
+				$cell_data_length = strlen($cell_data);		// length of string before truncating
+				$cell_default_length = get_field_val("Admin_Options","Value","Name = \"Default length of Truncated Text in Admin Section\"");
+				$full_string_link = " <a style=\"font-weight: bold; text-decoration: underline;\" href=\"?show_record_links=1&cell_data_truncated_length=9999\">...</a>";
+
+				if(!$cell_data_truncated_length) $cell_data_truncated_length = $cell_default_length; // if not set manually by user, then set the length of each sell to the default
+				if ($cell_data_length > $cell_data_truncated_length) {
+					$cell_data = substr($cell_data, 0, $cell_data_truncated_length).$full_string_link; 
+					$just_truncated = 1;
+					} else {
+						unset($just_truncated);
+				}
+
+				$cell_data = fix_reserved_mysql_values($cell_data);
+
+
+		if ($just_truncated) {
+			$cell_width = $cell_data_truncated_length * 5.5;
+			} else {
+				if (strlen($cell_data) < 10) $cell_width = strlen($cell_data) * 7;
+				if (strlen($cell_data) > 10) $cell_width = strlen($cell_data) * 6;
+				if (strlen($cell_data) > 20) $cell_width = strlen($cell_data) * 5.5;
+		};
+						
+			// output result in a table cell
+						
+// set path prefix....this is the path from the web root that when added to the field value of the image
+// will result in the path to the image.
+if($table == "Cart_Images" || $table == "Payment_Methods"){
+	$path_prefix="";
+ } else {
+	// if in Images table, which is for themes, set $path_prefix eq. to the name of the theme folder
+	if ($table == "Images") {
+		$path_prefix = "squirrelcart/themes/".get_field_val("Themes","Path_to_Files","record_number = \"$SC[theme_rn]\"");
+	} else {
+		$path_prefix=$SC['image_folder']."/";
+	}
+}
+
+if ($uploads[$current_field_name]) {
+	if ($table == "Images" && $current_field_name == "Image"){
+		$image_isp_path = get_image("Images",$current_record['Name'],0,0,2);
+		$image_path = get_image("Images",$current_record['Name'],0,0,1);
+	} else {
+		$image_isp_path = "$SC[site_isp_root]/$path_prefix$cell_data";
+		$image_path = "$SC[site_www_root]/$path_prefix$cell_data";
+	}
+	if (!is_file($image_isp_path)) unset ($image_path);
+} else {
+	unset($image_path);
+}
+
+$link_content = "$path_prefix$current_field_value";
+$image_link = $SC['cart_www_root']."/"."image_edit_popup.php?path=$link_content&rn=$selected_record_number&field_name=$current_field_name&table=$table&rn=$current_rn";
+
+if ($image_path) {
+	$image_size=getimagesize($image_isp_path);
+	if($show_thumbnails && $current_field_name=="Thumbnail_Image" || ($current_field_name == "Image" && $table == "Images") || ($current_field_name == "Logo_Image" && $table == "Shipping_Couriers") || ($current_field_name == "Image_of_Name" && $table == "Categories") || ($current_field_name == "Thumnbail_Image" && $table == "Product_Option_Values") || ($current_field_name == "Image_of_Name" && $table == "Product_Options")) {
+		$cell_data = "<img border=0 src=\"$image_path\" alt=\"Click to modify image: $image_path\" $image_size[3]>";
+		// if image file exists (for Theme table, sometimes it doesn't) display link to edit image
+		if(is_file($SC['site_isp_root']."/$link_content")) {
+			$cell_data = Popup_Window($image_link,$cell_data,700,600,1,1);
+		}
+		$cell_width = $image_size[0];
+	} else {
+		$cell_data = Popup_Window($image_link,$cell_data,700,600,1,1);
+//		$cell_data = Popup_Window("popup_window.php?image_path=$image_path",$cell_data,$image_size[0]+17,$image_size[1]+17,no,yes);
+	}
+} else {
+	// if cell data is a URL display as a link
+	if (strstr($cell_data,"http://") || strstr($cell_data,"https://")) $cell_data = "<a href=\"$cell_data\" target=\"new\">$cell_data</a>";
+}
+
+
+// if cell data is an email address, display as a mail to link
+	if (strstr($current_field_name,"Email")) {
+		if (strstr($cell_data,"@")) $cell_data = "<a href=\"mailto:$cell_data\">$cell_data</a>";
+	}
+
+// if cell data is displaying a field that is named "Enabled", don't show a number 1, or 0, instead show images
+	if ($current_field_name == "Enabled" || $current_field_name == "Do_not_display") {
+		$enable_link = "<a style=\"cursor: default\" href=\"".$SC['www_admin_page']."?show_record_links=1&set=1&table=$table&rn=$current_rn&fn=$current_field_name&nfv=1\">$unchecked_img</a>";
+		$disable_link = "<a style=\"cursor: default\" href=\"".$SC['www_admin_page']."?show_record_links=1&set=1&table=$table&rn=$current_rn&fn=$current_field_name&nfv=0\">$checked_img</a>";
+		if ($current_field_value == 0) $cell_data = $enable_link; 
+		if ($current_field_value == 1) $cell_data = $disable_link;
+	}
+
+// if cell data is an order number, display as a link to view order detail
+	if (strstr($current_field_name,"Order_Number")) {
+		$cell_data = "<a href=\"".$SC['www_admin_page']."?order_detail=$current_rn\">$cell_data</a>";
+	}
+
+// output cell data to browser
+		print "<td onclick=\"window.location='$edit_record_HREF'\" onmouseover=\"this.parentNode.style.background='yellow'\" onmouseout=\"this.parentNode.style.background='$alternate_row_color'\"
+class=\"non_header_cell\"><span style='width: $cell_width'>$cell_data</span></td>";
+		
+			}
+print "</tr>";	
+	
+	
+//	print "<a href=\"$SC[cart_www_page]?selected_record_number=$current_record[record_number]\">$v1$comma$v2</a><br>\n";
+}
+print "</table>\r\n";
+print "</form>";
+print "<span style='width: 600'>$table_footer</span>";
+
+}
+
+}
+}
+}
+?>

@@ -1,0 +1,89 @@
+<?
+// purpose of this function is to handle the problem of forgotten passwords
+function forgot_pw(){
+global $SC,$HTTP_POST_VARS,$REMOTE_ADDR,$HTTP_USER_AGENT,$REMOTE_HOST;
+	if ($HTTP_POST_VARS) {
+		if ($HTTP_POST_VARS[email]) $rn=get_field_val("Customers","record_number","Email_Address = '$HTTP_POST_VARS[email]'");
+		if ($rn) {
+			// found user's record. go ahead and change password
+			$user=get_records("Customers","*","record_number = '$rn'");
+			$user=$user[0];
+			$fields = get_fields($SC[db],"Customers");
+
+			// loop through fields for use in templates
+			for($x=0;$fields[$x];$x++){
+				$field = $fields[$x];
+				$$field = $user[$field];
+			}
+			$Company_Name = get_field_val("Store_Information","Company_Name","record_number = '1'");
+						
+			// randomly generate a new password based on ASCII 0-9, A-Z, a-z
+			for($x=48;!$stop;$x++){
+				$chars[] = chr($x);
+
+				if ($x == 57) $x = 64;
+				if ($x == 90) $x = 96;
+				if ($x == 122) $stop = 1;
+			}
+		
+			// now, $chars is an array containing 0-9, A-Z, and a-z
+			// now, generate a new random 8 char password based on these chars.
+			srand ((float) microtime() * 10000000);
+			$rand_keys = array_rand($chars, 8);
+			srand ((float)microtime()*1000000);
+			shuffle ($rand_keys);
+
+			for($x=0;isset($rand_keys[$x]);$x++){
+				$new_pw = $new_pw.$chars[$rand_keys[$x]];
+			}
+			$New_Password = $new_pw;
+			$new_pw_md5 = md5($new_pw);
+			// set new password in users record
+			set_field_val("Customers","Password",$new_pw_md5,"record_number = '$rn'");
+			
+
+			// now, send email to user
+			$to_email_address = $HTTP_POST_VARS[email];
+			$from_email_address = get_field_val("Store_Information","Customer_Service_Email","record_number = '1'");
+
+			// read template file into an array, and replace variables
+			$file_array = file($SC[templates][forgotten_password_email]);
+			for($x=0;$file_array[$x];$x++){
+				$file = $file.$file_array[$x];
+			}
+			$file = str_replace('<?=$First_Name?>',$First_Name,$file);
+			$file = str_replace('<?=$Last_Name?>',$Last_Name,$file);
+			$file = str_replace('<?=$Company_Name?>',$Company_Name,$file);
+			$file = str_replace('<?=$Username?>',$Username,$file);
+			$file = str_replace('<?=$New_Password?>',$New_Password,$file);
+			$file = str_replace('<?=$IP_Address?>',$REMOTE_ADDR,$file);
+			$file = str_replace('<?=$HTTP_USER_AGENT?>',$HTTP_USER_AGENT,$file);
+			$file = str_replace('<?=$REMOTE_HOST?>',$REMOTE_HOST,$file);
+			
+			$message = $file;
+			$subject = "Forgotten Password for $SC[site_www_root]";
+			 mail($to_email_address, $subject, $message,"From: $from_email_address\nReply-To: $from_email_address\nX-Mailer: PHP\nErrors-To: $from_email_address");
+			include $SC[templates][forgotten_password_success];			
+			} else {
+				// email address wasn't found in DB. report failure, and show form again
+				$SC[forgot_pw][failure_count]++;
+				$failure_limit = get_field_val("Store_Information","Forgotten_Password_Limit","record_number = '1'");
+				if(!$failure_limit) $failure_limit = 8;
+				if($SC[forgot_pw][failure_count] >= $failure_limit) {
+					// user has tried to guess too many times. don't allow any more attempts this session
+					include $SC[templates][forgotten_password_failure];
+					die;
+					} else {
+					// if user hasn't tried to guess too many times, show fialure message, and form again
+					$Failure_Message = "<div class='action_msg'>I'm sorry, but the email address <i>$HTTP_POST_VARS[email]</i> was not found in our database.</div>";
+					$failed_lookup = 1;
+				}			
+		}
+	} 
+	
+	
+	if (!$HTTP_POST_VARS || $failed_lookup){
+		include $SC[templates][forgotten_password_form];
+	}
+}
+?>

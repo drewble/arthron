@@ -1,0 +1,31 @@
+<?
+// file modified on 10/20/02 for v1.0.9 to eliminate illegal chars in MySQL queries
+// file modified on 7/24/03 for v1.2 to support running PHP with either magic_quotes_gpc On or OFF
+
+function modify_record($table,$where,$fields,$values,$test=0){
+//	$fields_imp = implode(",",$fields);
+//	$values_imp = implode("','",$values);
+//	$values_imp = "'$values_imp'";
+
+	unset($set_string);
+	for($x=0;$fields[$x];$x++){
+		$field_name = $fields[$x];
+		if (!get_magic_quotes_gpc() || ($table == "TEMP_Sessions" && $field_name == "Cart_Contents")) {
+			$value = mysql_escape_string($values[$field_name]);
+		} else {
+			$value = $values[$field_name];
+		}		
+		$set_string = $set_string."$field_name = '$value'";
+		// ---- if there is another field left, use a comma, else don't
+		if ($fields[$x+1]) {
+			$comma = ",";
+			} else {
+				unset($comma);
+				}
+		$set_string = $set_string.$comma;
+	}
+	$query = "UPDATE $table SET $set_string WHERE $where";
+	if ($test) print "$query<br>";
+	mysql_query($query) or die ("Query Failed: ". mysql_error());
+}
+?>

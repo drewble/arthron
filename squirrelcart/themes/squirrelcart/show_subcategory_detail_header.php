@@ -1,0 +1,1 @@
+<br><br>This category contains <?=$SubCategory_Count?> <?=$SubCategory_Word?><br><br>

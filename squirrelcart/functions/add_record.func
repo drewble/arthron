@@ -1,0 +1,42 @@
+<?
+/*
+ this function adds a single record to the DB
+ file modified on 10/20/02 for v1.0.9 to fix problem adding values to the DB that MySQL did not like (quotes, ampersands, etc....)
+ file modified on 10/29/02 to fix problem that was causing new user account creations to fail
+ file modified on 7/24/03 for v1.2 to support running PHP with either magic_quotes_gpc On or OFF
+ file modified on 12/15/03 to fix problem with adding order to DB when item has a quote in the name
+*/
+
+function add_record($table,$fields,$values,$test=0){
+	$fields_imp = implode(",",$fields);
+
+// fix characters that MySQL doesn't like
+
+	for($x=0;$fields[$x];$x++){
+		$field= $fields[$x];
+		// this function can either except values with the field name as the key, OR values with incremental numbers as the key
+		if(isset($values[$x])) {
+			$key = $x;
+		} else {
+			$key = $field;
+		}
+		// check to see if a single or double quote is present
+		$quote_present = strstr($values[$key], "'") || strstr($values[$key], "\"");
+		// check to see if a slash is present
+		$slash_present = strstr($values[$key],"\\");
+
+		if (!get_magic_quotes_gpc() || ($quote_present && !$slash_present)) {
+			$new_values[$key] = mysql_escape_string($values[$key]);
+		} else {
+			$new_values[$key] = $values[$key];
+		}			
+	}
+	$values = $new_values;
+
+	$values_imp = implode("','",$values);
+	$values_imp = "'$values_imp'";
+	$query = "INSERT INTO $table (record_number, $fields_imp) VALUES ('', $values_imp)";
+	if ($test) print $query;
+	mysql_query($query) or die ("Query Failed: $query");
+}
+?>

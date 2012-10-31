@@ -1,0 +1,11 @@
+<?
+//purpose of function is to return a field value from a single record and explode it into an array based on a where statement
+
+function get_field_array($table,$field_name,$where,$seperator=0){
+	if (!$seperator) $seperator = "^^";
+	$record = get_records($table,$field_name,$where,0,0);
+	$value = $record[0][$field_name];
+	$value = explode($seperator, $value);
+	return $value;
+}
+?>

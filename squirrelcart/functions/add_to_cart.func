@@ -1,0 +1,148 @@
+<?
+/*
+purpose of function is to handle add to cart functionality
+
+modified 9/18/02 for v1.0.9 to improve output shown to customer when referring URL does not match list of authorized hosts
+modified 9/9/03 for v1.2.0 to fix manually added items from showing as $Name in emails
+modified 11/22/03 for v1.3.0 to fix accidental readd of item when clicking "back" button
+modified 12/02/03 for v1.4.0 to fix manually added items from generating error messages: http://www.ldev.com/forums/showthread.php?t=1072
+*/
+
+function add_to_cart(){
+global
+$SC, $add_to_cart,$HTTP_POST_VARS,$HTTP_GET_VARS,$prod_rn,$quantity,$prod_name,$option,$option_name,$option_type,$option_price,$option_weight,$text_option,$base_price,$HTTP_REFERER;
+	if(check_referer()) {		// check to see if posting from an authorized host
+		if (!$quantity) {
+			$SC['cart_message'] = "<div class=\"action_msg\">No quantity specified!</div>";
+			$error = 1;
+		} else {
+			if (!is_numeric($quantity)) {
+				$SC['cart_message'] = "<div class=\"action_msg\">Quantity must be a number!</div>";
+				$error = 1;
+			} else {
+				if($quantity < 0) {
+					$SC['cart_message'] = "<div class=\"action_msg\">Quantity cannot be a negative number!</div>";
+					$error = 1;
+				} else {
+					if(strstr($quantity,".")) {
+						$SC['cart_message'] = "<div class=\"action_msg\">Quantity cannot be a decimal!</div>";
+						$error = 1;
+					} else {
+						if($quantity > $SC['max_qty']) {
+							$SC['cart_message'] = "<div class=\"action_msg\">Quantity has exceeded maximum allowed.</div>";
+							$error = 1;
+						} else {
+							if($HTTP_GET_VARS['agreement_name'] && count($HTTP_GET_VARS['agreement_name']) != count($HTTP_GET_VARS['agreement_agreed'])) {
+								$SC['cart_message'] = "<div class=\"action_msg\">You must agree to all agreements to purchase this item.</div>";
+								$error = 1;
+							} else {
+								// make sure microtime of this product is unique, to ensure you can't accidently readd to the cart by hitting back button
+								if ($SC['order'] && $HTTP_GET_VARS['microtime']) {
+									foreach($SC['order'] as $item) {
+										if (is_array($item)) {
+											if(in_array($HTTP_GET_VARS['microtime'], $item)) return;
+										}
+									}
+								}
+								
+								// when adding an item to the cart, shipping method must be re chosen, because package will be heavier
+								// below removes the shipping method from the SESSION variable
+									unset($SC['order']['shipping']);
+					
+								// strip added slashes in the product name
+									$prod_name = stripslashes($prod_name);	
+								
+								// below is a check to determine if exact same item with same options selected is already in the cart
+								// if so, it sets $add_to_cart to the index number of the item in the cart ($x)
+								unset($add_to_quantity);
+								for($x=0;$SC['order'][$x];$x++){
+									if($prod_rn == $SC['order'][$x]['rn']){
+										if ($option == $SC['order'][$x]['option']){
+											$add_to_quantity = $x;
+										};
+									}
+								}
+								$SC[cart_message] = "<br><span class=\"action_msg\">$quantity \"$prod_name\" added to cart</span><br>";
+								unset($order);
+								//test section
+								// option[] keys have to stay in numerical order, and can't skip a number
+								// that's why I used new_option to basically reset the keys, dropping out any text options that where not entered by customer
+								for($r=0;$option[$r];$r++){
+									if($option_type[$r] == "Text Input" || $option_type[$r] == "Textarea Input" ) {
+								//		$option[$r] = $option_name[$r]."^^".$option[$r]."^^".$option_price[$r]."^^".$option_weight[$r];
+										if($text_option[$r]) $new_option[] = $option_name[$r]."^^".$text_option[$r]."^^".$option_price[$r]."^^".$option_weight[$r];
+										} else {
+										$new_option[] = $option[$r];
+									}
+								}
+								$option = $new_option;
+								// added below, because without it, tax was not calculated until after a refresh
+								process_cart();
+								
+								// set $product equal to the product from the DB
+								$product=get_records("Products",$select,"record_number = \"$prod_rn\"",$sortby,$order);
+								$product = $product[0];
+								$order = $product;
+								$order['rn'] = $prod_rn;
+								$order['name'] = $prod_name;
+								$order['microtime'] = $HTTP_GET_VARS['microtime']; // used to ensure you can't accidently readd to the cart by hitting back button
+								if (!$order['Name']) $order['Name'] = $prod_name;
+								$order['option'] = $option;
+								// modify stock if inventory control enabled
+								if($SC['inventory_control']){
+									$num_in_stock = $product['Number_in_Stock'];
+									$new_qty = $num_in_stock - $quantity;
+								
+								// if number ordered is more than number in stock, and out of stock behavior is 1 or 3 (no purchase allowed), generate error and return
+									if($num_in_stock < $quantity && ($SC['out_of_stock_behavior'] == 1 || $SC['out_of_stock_behavior'] == 3)) {
+										if($num_in_stock == 0) {
+											$SC['cart_message'] = "<br><span class=\"action_msg\">We are sorry, but this item is currently out of stock.</span><br>";
+											} else {
+											if ($num_in_stock == 1)	{
+												$SC['cart_message'] = "<br><span class=\"action_msg\">We are sorry, but we only have $num_in_stock of this item in stock. Please specify a quantity of 1.</span><br>";
+												} else {
+												$SC['cart_message'] = "<br><span class=\"action_msg\">We are sorry, but we only have $num_in_stock of these items in stock. Please specify a quantity less than or equal to $num_in_stock.</span><br>";
+											}
+										}
+										return;
+										} else {
+								// stock is sufficient to handle this order. go ahead and modify stock accordingly
+											set_field_val("Products","Number_in_Stock",$new_qty,"record_number = '$prod_rn'");
+									}
+								}
+								$order["base_price"] = $base_price;
+								// if item with exact same record number and options is in cart, this adds to the quantity of that item,
+								// instead of adding this item as a seperate entry in the cart
+								if(isset($add_to_quantity)) {
+									$order['qty'] = $quantity + $SC["order"][$add_to_quantity]["qty"];
+									$SC['order'][$add_to_quantity] = $order;
+									} else {
+										$order['qty'] = $quantity;
+										$SC['order'][] = $order;
+									}
+							}
+						}
+				}
+			}
+		}
+	}
+} else {
+	$SC['cart_message'] = "<br><span class=\"action_msg\">Error: access denied. Attempting to post form data from an unauthorized host!</span><br>";
+}
+unset($add_to_cart);
+if ($error) {
+	// the following code will override the $show_cart variable, so if there is an error, we will stay on the product page, regardless of the setting of "Add_to_cart_behavior"
+	unset ($HTTP_GET_VARS['show_cart']);
+	unset ($GLOBALS['show_cart']);
+	// remove this SECTION when we support register_globals = OFF as it won't be needed
+	$GLOBALS['rn'] = $prod_rn;	
+	$GLOBALS['crn'] = get_field_val("REL_Products__Categories","Table_2","Table_1 = $prod_rn",0,0,"LIMIT 0,1");
+	$GLOBALS['action'] = "show_detail";
+	// added this section in prep of supporting register_globals = OFF. 
+	$HTTP_GET_VARS['rn'] = $prod_rn; 
+	$HTTP_GET_VARS['crn'] = get_field_val("REL_Products__Categories","Table_2","Table_1 = $prod_rn",0,0,"LIMIT 0,1");
+	$HTTP_GET_VARS['action'] = "show_detail";
+}
+}
+// modified on 9/25/02 for v1.0.9 to enable inventory control
+?>

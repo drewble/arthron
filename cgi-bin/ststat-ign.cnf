@@ -1,0 +1,51 @@
+--------- ststat-ign.cnf
+                        for STstat v3.1 ------------------------------------
+
+* This file is read at runtime so it should be placed in the same directory
+  with STstat executable (/cgi-bin/ , at most cases).
+
+ Add below any hostnames that you want to be ignored completely by STstat
+ (up to 100 names). You must also enclose the hostnames in brackets, like
+ the example below.
+ Note that execution time increases when you add entries to this list.
+ 
+-------------- Ignore the following hosts ----------------------------------
+{localhost}
+{127.0.0.1}
+{souvlaki}
+{.world-office.net}
+-------------- End of Ignored hosts ----------------------------------------
+
+ Add below any files or file extensions that you want to be IGNORED COMPLE-
+ TELY by STstat. If DISPLAYFILES constant in ststat.cnf file is set to other
+ than 1, the following list is not examined.
+ The entries should be enclosed in square brackets, like the examples below.
+ (Maximum entries=200)
+
+-------------- Ignore the follwing files -----------------------------------
+[.gif]
+[.GIF]
+[.jpg]
+[.JPG]
+[.jpeg]
+[.bmp]
+[.xbm]
+[.txt]
+[.doc]
+[.class]
+[.cgi]
+[test.pl]
+[cgi-bin]
+[test]
+[cgi-shl]
+-------------- End of Ignored files ----------------------------------------
+
+ Add below any domain names that you do not want to appear in the Referer sta-
+ tistics page.
+
+-------------- Ignore the following domains ---------------------------------
+<localhost>
+<127.0.0.1>
+<home.world-office.net>
+<souvlaki>
+-------------- End of Ignored domains ---------------------------------------

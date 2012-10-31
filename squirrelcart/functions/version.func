@@ -1,0 +1,46 @@
+<? function version() {
+global $SC;
+
+$file_array = @file("http://www.squirrelcart.com/current.txt");
+$current_version = $file_array[0];
+if ($current_version) {
+//include "http://www.squirrelcart.com/current_version.php";
+//$filename = "http://www.squirrelcart.com/current.txt";
+//$fd = fopen ($filename, "r");
+//$current_version = fread ($fd,5);
+//fclose ($fd);
+
+$ok_image = "green.gif";
+$bugfix_img = "yellow.gif";
+$feature_img = "yellow_flashing.gif";
+$major_img = "red.gif";
+
+$current_version = explode(".",$current_version);
+$client_version = explode(".",$SC[client_version]);
+
+$bugfix		= ($current_version[2] > $client_version[2]);
+$feature 	= ($current_version[1] > $client_version[1]);
+$major 		= ($current_version[0] > $client_version[0]);
+
+if (!$bugfix || !$feature || !$major) {
+	$version[0] = $ok_image;
+	$version[1] = "Squirrelcart is up to date.";
+	}
+if ($bugfix) {
+	$version[0] = $bugfix_img;
+	$version[1] = "There is an update available.";
+	}
+if ($feature) {
+	$version[0] = $feature_img;
+	$version[1] = "There are updates available.";
+	}
+if ($major) {
+	$version[0] = $major_img;
+	$version[1] = "A new major release is available.";
+	}
+
+return $version;
+}
+
+}
+?>

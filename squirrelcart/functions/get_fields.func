@@ -1,0 +1,20 @@
+<?
+// purpose of function is to return a list of field names for a table, in an ordered array
+
+function get_fields($db,$table){
+global $link, $SC;
+
+	$fields = mysql_list_fields($db, $table, $link);
+	$columns = mysql_num_fields($fields);
+// get field names into sorted array
+	for ($i = 0; $i < $columns; $i++) {
+		$field_names[] =mysql_field_name($fields, $i);
+	}
+	
+	$sorted = $field_names;
+	sort($sorted); //sort field names;
+	$field_names["unsorted"] = $field_names;
+	$field_names["sorted"] = $sorted;
+	return $field_names;
+}
+?>

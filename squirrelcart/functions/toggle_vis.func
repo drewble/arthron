@@ -1,0 +1,93 @@
+<?
+// function added 2/11/2003, for v1.1.0
+// purpose of function is to generate javascript to toggle field visibilty on and off in admin section when editing records
+// $table is set to the table you are working with
+// $fields is an array containing all the field names for that table, indexed numerically
+// this function will separately hide the field name (descriptor), and the field itself
+function toggle_vis($table,$fields){
+
+	$toggle_fields = get_records("Field_Definition","Field_Name,Show_When,Input_Choices_Source,Break_After,Follow_With,Precede_With,Display_As","Table_Name = '$table' AND Show_When !=''");
+	$table_fields = $fields['sorted'];
+	print "<script type=\"text/javascript\">";
+	print "function toggle_vis(){";
+	for($x=0;$toggle_fields[$x];$x++){
+		$toggle_field = $toggle_fields[$x];
+		$field_name = $toggle_field['Field_Name'];
+		$display_as = $toggle_field['display_as'];
+		if($toggle_field['Input_Choices_Source'] != "Field Names" && $toggle_field['Display_As'] != "No Field"){
+			$show_when = $toggle_field['Show_When'];
+			$show_when = str_replace("$","",$show_when);
+			$show_when = str_replace(";","",$show_when);
+			for($i=0;$table_fields[$i];$i++){
+				$table_field = $table_fields[$i];
+				$table_field_display_as = @get_field_val("Field_Definition","Display_As","Table_Name = '$table' AND Field_Name = '$table_field'");
+				if (strstr($show_when,"$table_field ") || $show_when == $table_field) {
+					if ($table_field_display_as == "Checkbox Input") {
+						if(strstr($show_when,"$table_field ")) {
+							$show_when = str_replace("$table_field ","record_form.$table_field.checked ",$show_when);
+						} else {
+							$show_when = str_replace("$table_field","record_form.$table_field.checked == 1 ",$show_when);
+						}
+					} else {
+						$show_when = str_replace("$table_field ","record_form.$table_field.value ",$show_when);
+					}
+					
+				}
+			}
+			$show_code = "record_form.$field_name.style.display = \"\";\n";
+
+			$show_code .= "$field_name.style.display = \"\";\n";
+
+			if ($toggle_field['Follow_With']) {
+				// the FW span tag below is used to toggle vis on the follow with section of a field....if there is an opening but no closing tag like DIV or SPAN, then
+				// we can't output the below span tag, as it will be improperly nested.....so...check for an opening and closing DIV or SPAN first...if tags aren't closed, then this 
+				// FW tag won't show up
+				$open_divs = substr_count(trim(strtolower($toggle_field['Follow_With'])),"<div>");
+				$close_divs = substr_count(trim(strtolower($toggle_field['Follow_With'])),"</div>");
+				$open_spans = substr_count(trim(strtolower($toggle_field['Follow_With'])),"<span>");
+				$close_spans = substr_count(trim(strtolower($toggle_field['Follow_With'])),"</span>");
+				$open_tds = substr_count(trim(strtolower($toggle_field['Follow_With'])),"<td>");
+				$close_tds = substr_count(trim(strtolower($toggle_field['Follow_With'])),"</td>");
+				if ($open_divs == $close_divs && $open_spans == $close_spans && $open_tds == $close_tds) {
+					$FW_complete = 1;
+				}
+			}
+			if ($toggle_field['Precede_With']) {
+				// the FW span tag below is used to toggle vis on the follow with section of a field....if there is an opening but no closing tag like DIV or SPAN, then
+				// we can't output the below span tag, as it will be improperly nested.....so...check for an opening and closing DIV or SPAN first...if tags aren't closed, then this 
+				// FW tag won't show up
+				$open_divs = substr_count(trim(strtolower($toggle_field['Precede_With'])),"<div>");
+				$close_divs = substr_count(trim(strtolower($toggle_field['Precede_With'])),"</div>");
+				$open_spans = substr_count(trim(strtolower($toggle_field['Precede_With'])),"<span>");
+				$close_spans = substr_count(trim(strtolower($toggle_field['Precede_With'])),"</span>");
+				$open_tds = substr_count(trim(strtolower($toggle_field['Precede_With'])),"<td>");
+				$close_tds = substr_count(trim(strtolower($toggle_field['Precede_With'])),"</td>");
+				if ($open_divs == $close_divs && $open_spans == $close_spans && $open_tds == $close_tds) {
+					$PW_complete = 1;
+				}
+			}
+
+			if($toggle_field['Break_After']) $show_code .= "BR$field_name.style.display = \"\";\n";
+			if($toggle_field['Follow_With'] && $FW_complete) $show_code .= "FW$field_name.style.display = \"\";\n";
+			if($toggle_field['Precede_With'] && $PW_complete) $show_code .= "PW$field_name.style.display = \"\";\n";
+
+			$hide_code = "record_form.$field_name.style.display = \"none\";\n";
+			$hide_code .= "$field_name.style.display = \"none\";\n";
+			if($toggle_field['Break_After']) $hide_code .= "BR$field_name.style.display = \"none\";\n";
+			if($toggle_field['Follow_With'] && $FW_complete) $hide_code .= "FW$field_name.style.display = \"none\";\n";
+			if($toggle_field['Precede_With'] && $PW_complete) $hide_code .= "PW$field_name.style.display = \"none\";\n";
+			if(strstr($show_when,"security_level")) $dont_toggle = 1;
+			if (!$dont_toggle) {
+			print "
+			if ($show_when) {
+				$show_code ;
+			} else {
+				$hide_code;
+			};";
+			}
+		}
+	}
+	print "}";
+	print "</script>";
+}
+?>

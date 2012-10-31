@@ -1,0 +1,20 @@
+<?
+/*
+file added in v1.1.0
+function returns the number of records in table $table. $where is optional
+*/
+function count_records($table,$where=0,$test=0) {
+	if ($where) $where_string = "WHERE $where";
+	$query = "SELECT COUNT(record_number) FROM $table $where_string";
+
+	if($test) {
+		print "<br><b>Query from count_records():</b> $query<br>";
+	} else {
+		$result = mysql_query ($query);
+		while ($row = mysql_fetch_array ($result)) {
+			$records[] = $row;
+		}
+		return $records[0][0];
+	}
+}
+?>

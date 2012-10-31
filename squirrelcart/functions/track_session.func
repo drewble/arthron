@@ -1,0 +1,39 @@
+<?
+// purpose of function is to keep track of session for various purposes. should be called after most other operations in cart have finished
+// function adds a record in the TEMP_Sessions table upon evey page load, with the contents of $SC['order'] stored in the order field,
+// and the time in the "Last_Activity" field
+
+function track_session(){
+global $SC;
+	$SC_id = session_id();
+	
+// update the current session's activity in the TEMP_Sessions table
+	$record_exists = get_field_val("TEMP_Sessions","Last_Activity","SESSION_ID = '$SC_id'");
+	$time = time();
+	$order = serialize($SC['order']);
+	$fields[] = "SESSION_ID";
+	$fields[] = "Cart_Contents";
+	$fields[] = "Last_Activity";
+	$values[] = $SC_id;
+	$values[] = $order;
+	$values[] = $time;
+
+
+	if($record_exists) {
+		// record exists in TEMP_Sessions. need to update it
+		$where = "SESSION_ID = '$SC_id'";
+		$values['SESSION_ID'] = $SC_id;
+		$values['Cart_Contents'] = $order;
+		$values['Last_Activity'] = $time;
+		modify_record("TEMP_Sessions",$where,$fields,$values);
+		} else {
+		// record doesn't exist in TEMP_Sessions. need to add it
+		add_record("TEMP_Sessions",$fields,$values);
+	}
+	// add last activity to SESSION variable
+	$SC['Last_Activity'] = $time;
+// done updating for existing session
+}
+
+// file created 09/25/02 for v1.0.9 to handle inventory control
+?>

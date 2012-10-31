@@ -1,0 +1,21 @@
+<?
+// file modified on 5/20/2003 for v1.1.1 - to support "Display_In_Content" and "Display_In_Navigation" fields on category records
+function show_categories_detail(){
+global
+$SC,$rn;
+//-----------------get categories -------------------------------------------//
+	$categories = get_categories(0);
+	
+	include $SC['templates']['show_categories_header'];
+//---------------------loop through categories and display info --------------//
+	for($x=0;$categories[$x];$x++){
+		$category = $categories[$x];
+		$crn = $category['record_number'];
+		if ($category['Display_In_Content'] != 0) { // if category is set to Display in Content
+			show_category_detail($crn); // run function to show category detail
+			if ($categories[$x+1]) include $SC['templates']['show_category_detail_seperator'];
+		}
+	}
+	include $SC['templates']['show_categories_footer'];
+}
+?>

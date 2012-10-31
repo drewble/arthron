@@ -1,0 +1,9 @@
+<?
+//purpose of function is to return a field value based on a record number in a table
+
+function get_field_value($table,$record_number,$field_name){
+	$where = "record_number = \"$record_number\"";
+	$record = get_records($table,0,$where,0,0);
+	return $record[0][$field_name];
+}
+?>

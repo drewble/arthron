@@ -1,0 +1,47 @@
+	.action_msg { color: red; font-weight: bold; }
+	.admin_help_link { cursor: help; text-decoration: none; }
+	.admin_help_link:hover { background-color: yellow; color: black; }
+	.admin_help_link:visited { color: blue; }
+	.admin_option_link { text-decoration: none; }
+	.admin_option_link:hover { background-color: yellow; width: 100%; }
+	.field_input { text-align: left; width: 400; }
+	.field_input_half { width: 125; }
+	.field_input_price { width: 40; }
+	.field_name { padding-right: 2; position: relative; text-align: right; top: 3; vertical-align: top; width: 150; }
+	.field_name_no_width { position: relative; top: -2; }
+	.form_descriptor { border-color: black; border-style: solid; border-width: 1; text-align: center; width: 100%; }
+
+	.form_section { border-bottom: gray solid 2; border-left: black solid 1; border-right: gray solid 2;  margin-bottom: 25; margin-left: 5; margin-right: 5; margin-top: 5; padding: 0; padding-bottom: 15px; text-align: left; vertical-align: top; width: 100%; }
+	.form_section_header { border: black solid 1; border-left: 0; border-right: 0; color: black; font-weight: bold;  font-size: 10pt; padding: 2; text-align: left; padding-left: 10px;width: 100%; margin-bottom: 10px; background-color: #B4B9D2;}
+	.form_section2 { border-bottom: gray solid 2; border-left: black solid 1; border-right: gray solid 2;  margin-bottom: 25; margin-left: 5; margin-right: 5; margin-top: 5; padding: 0; text-align: left; vertical-align: top; width: 100%; }
+	.form_section_header2 { border: black solid 1; border-left: 0; border-right: 0; color: black; font-weight: bold;  font-size: 10pt; padding: 2; text-align: left; padding-left: 10px;width: 100%;  background-color: #B4B9D2;}
+
+	.header_cell { background-color: silver; border-color: black; border-style: solid; border-width: 1 1 1 0; }
+	.header_cell_pad { background-color: navy; border-color: black; border-style: solid; border-width: 1 0 1 1; padding: 5; color: white; font-weight: bold}
+	.header_links { color: black; height: 100%; text-decoration: none; width: 100%; }
+	.header_links:hover { background-color: yellow; height: 100%; width: 100%; }
+	.mysql_select { text-align: left; width: 300; }
+	.non_header_cell { border-color: silver; border-style: solid; border-width: 1 0 0 1; padding-bottom: 2; padding-left: 6; padding-right: 2; padding-top: 2; }
+	.non_header_cell_pad { border-color: silver; border-style: solid; border-width: 1 0 0 1; padding: 6 }
+	.option_checkbox { vertical-align: top; }
+	.option_delete { width: 20; }
+	.option_name { width: 100; }
+	.option_price { width: 50; }
+	.option_value { width: 230; }
+	.option_weight { width: 50; }
+	.ups_window {border: black solid 1; width: 525}
+	.ups_window_header {background-color: #804000; height: 30; color: white; font-size: 10pt; font-weight: bold; padding: 5}
+	.record_number { background-color: silver; border-color: gray silver silver gray; border-style: solid; border-width: 1; padding-left: 2; position: relative; text-align: left; top: 2.5; width: 300; }
+	.shaded_td {background-color: #EDEDED}
+	.stat_table { border: black solid 1px;}
+	.stat_top_row { background-color: #B4B9D2; color: black; font-weight: bold;}
+	.stat_top_td {border-bottom: solid black 1px}
+	.stat_td { border-bottom: silver solid 1px }
+	.stat_td_alternate { border-bottom: silver solid 1px; background-color: #F1F3F9 }
+	.store_info_header {font-size: 10pt; font-weight: bold; text-decoration: underline; margin-top: 20; margin-bottom: 10; text-align:center}
+	BODY { font-family: Tahoma, Arial, Helvetica; font-size: 8pt; margin-bottom:  0; margin-left:  0; margin-right:  0; margin-top:  0; vertical-align: top; }
+	INPUT { font-size: 11px; }
+	OPTION { }
+	SELECT { font-size: 11px; }
+	TD { font-family: Tahoma; font-size: 11px; position: center; }
+	TEXTAREA { font-family: Tahoma; font-size: 11px; }
